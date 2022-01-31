@@ -490,7 +490,7 @@ type Loc struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	PkgPath      string `protobuf:"bytes,1,opt,name=pkg_path,json=pkgPath,proto3" json:"pkg_path,omitempty"`                   // The package path within the repo (i.e. `/users/signup`)
+	PkgPath      string `protobuf:"bytes,1,opt,name=pkg_path,json=pkgPath,proto3" json:"pkg_path,omitempty"`                   // The package path within the repo (i.e. `users/signup`)
 	PkgName      string `protobuf:"bytes,2,opt,name=pkg_name,json=pkgName,proto3" json:"pkg_name,omitempty"`                   // The package name (i.e. `signup`)
 	Filename     string `protobuf:"bytes,3,opt,name=filename,proto3" json:"filename,omitempty"`                                // The file name (i.e. `signup.go`)
 	StartPos     int32  `protobuf:"varint,4,opt,name=start_pos,json=startPos,proto3" json:"start_pos,omitempty"`               // The starting index within the file for this node
@@ -850,7 +850,7 @@ type List struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Elem *Type `protobuf:"bytes,1,opt,name=elem,proto3" json:"elem,omitempty"` // The type of the list
+	Elem *Type `protobuf:"bytes,1,opt,name=elem,proto3" json:"elem,omitempty"` // The type of the elements in the list
 }
 
 func (x *List) Reset() {

@@ -63,7 +63,7 @@ func walkDir(dir, rel string, walkFn walkFunc) error {
 }
 
 // parseDir is like go/parser.ParseDir but it constructs *est.File objects instead.
-func parseDir(context build.Context, fset *token.FileSet, dir, relPath string, filter func(os.FileInfo) bool, mode goparser.Mode) (pkgs map[string]*ast.Package, files []*est.File, err error) {
+func parseDir(buildContext build.Context, fset *token.FileSet, dir, relPath string, filter func(os.FileInfo) bool, mode goparser.Mode) (pkgs map[string]*ast.Package, files []*est.File, err error) {
 	fd, err := os.Open(dir)
 	if err != nil {
 		return nil, nil, err
@@ -90,12 +90,11 @@ func parseDir(context build.Context, fset *token.FileSet, dir, relPath string, f
 			}
 
 			// Check if this file should be part of the build
-			matched, err := context.MatchFile(dir, d.Name())
+			matched, err := buildContext.MatchFile(dir, d.Name())
 			if err != nil {
 				errors.Add(token.Position{Filename: filename}, err.Error())
 				continue
 			}
-
 			if !matched {
 				continue
 			}

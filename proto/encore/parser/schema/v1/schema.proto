@@ -71,7 +71,7 @@ message TypeParameter {
 
 // Loc is the location of a declaration within the code base
 message Loc {
-  string pkg_path       = 1; // The package path within the repo (i.e. `/users/signup`)
+  string pkg_path       = 1; // The package path within the repo (i.e. `users/signup`)
   string pkg_name       = 2; // The package name (i.e. `signup`)
   string filename       = 3; // The file name (i.e. `signup.go`)
   int32  start_pos      = 4; // The starting index within the file for this node
@@ -111,7 +111,7 @@ message Map {
 
 // List represents a list type (array or slice)
 message List {
-  Type elem = 1; // The type of the list
+  Type elem = 1; // The type of the elements in the list
 }
 
 // Builtin represents a type which Encore (and Go) have inbuilt support for and so can be represented by Encore's tooling

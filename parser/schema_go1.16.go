@@ -12,7 +12,7 @@ import (
 )
 
 // parseDecl parses the type from a package declaration.
-func (p *parser) parseDecl(pkg *est.Package, d *names.PkgDecl, _ TypeParameterLookup) *schema.Type {
+func (p *parser) parseDecl(pkg *est.Package, d *names.PkgDecl, _ typeParameterLookup) *schema.Type {
 	key := pkg.ImportPath + "." + d.Name
 	decl, ok := p.declMap[key]
 	if !ok {

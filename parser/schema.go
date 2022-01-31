@@ -28,7 +28,7 @@ func (p *parser) resolveDecl(pkg *est.Package, file *est.File, expr ast.Expr) *s
 }
 
 // resolveType parses the schema from a type expression.
-func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, typeParameters TypeParameterLookup) *schema.Type {
+func (p *parser) resolveType(pkg *est.Package, file *est.File, expr ast.Expr, typeParameters typeParameterLookup) *schema.Type {
 	expr = deref(expr)
 	pkgNames := p.names[pkg]
 

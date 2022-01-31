@@ -4,4 +4,4 @@ import (
 	schema "encr.dev/proto/encore/parser/schema/v1"
 )
 
-type TypeParameterLookup map[string]*schema.TypeParameterRef
+type typeParameterLookup map[string]*schema.TypeParameterRef

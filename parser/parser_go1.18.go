@@ -29,14 +29,15 @@ func go118ResolveType(p *parser, pkg *est.Package, file *est.File, expr ast.Expr
 	return nil
 }
 
+// resolveWithTypeArguments first resolves the parameterized declaration of `ident`, before resolving each of
+// the `typeArguments` to concrete types. It then returns a `*schema.Name` representing that instantiated type.
 func resolveWithTypeArguments(p *parser, pkg *est.Package, file *est.File, ident ast.Expr, typeArguments ...ast.Expr) *schema.Type {
-	// First we need to resolve the parameterized declaration
 	parameterizedType := p.resolveType(pkg, file, ident, nil)
 
 	named := parameterizedType.GetNamed()
 	if named == nil {
 		p.errf(ident.Pos(), "expected to get a named type, got %+v", reflect.TypeOf(parameterizedType.Typ))
-		panic(bailout{})
+		return parameterizedType
 	}
 
 	decl := p.decls[named.Id]
@@ -50,8 +51,6 @@ func resolveWithTypeArguments(p *parser, pkg *est.Package, file *est.File, ident
 		panic(bailout{})
 	}
 
-	// Then we need to resolve each of the type arguments to concrete types non-parameterized types
-	// and store them in the Named object
 	named.TypeArguments = make([]*schema.Type, len(decl.TypeParams))
 	for idx, expr := range typeArguments {
 		named.TypeArguments[idx] = p.resolveType(pkg, file, expr, nil)
