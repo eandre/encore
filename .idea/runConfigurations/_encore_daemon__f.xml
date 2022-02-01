@@ -1,0 +1,16 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="🤖 encore daemon -f" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="encore" />
+    <working_directory value="$PROJECT_DIR$" />
+    <go_parameters value="-ldflags=&quot; -X 'encr.dev/cli/internal/conf.defaultPlatformURL=http://localhost:9000' -X 'encr.dev/cli/internal/conf.DefaultConfigDirectory=encoredev' -X 'encr.dev/cli/internal/env.alternativeEncoreRuntimePath=$PROJECT_DIR$/compiler/runtime' -X 'encr.dev/cli/internal/env.alternativeEncoreGoPath=$PROJECT_DIR$/../go/dist/darwin_arm64/encore-go'&quot; -tags dev_build" />
+    <parameters value="daemon -f" />
+    <envs>
+      <env name="ENCORE_DAEMON_DEV" value="1" />
+    </envs>
+    <kind value="DIRECTORY" />
+    <package value="github.com/encoredev/encore" />
+    <directory value="$PROJECT_DIR$/cli/cmd/encore" />
+    <filePath value="$PROJECT_DIR$" />
+    <method v="2" />
+  </configuration>
+</component>
