@@ -1,4 +1,4 @@
-import {Decl, Loc} from "./schema";
+import {Decl, Type, Loc} from "./schema";
 
 export interface APIMeta {
   module_path: string;
@@ -30,8 +30,8 @@ export interface RPC {
   doc: string;
   access_type: "PRIVATE" | "PUBLIC" | "AUTH";
   rpc_calls: QualifiedName[];
-  request_schema?: Decl;
-  response_schema?: Decl;
+  request_schema?: Type;
+  response_schema?: Type;
   proto: "REGULAR" | "RAW";
   loc: Loc;
   path: Path;
@@ -53,7 +53,7 @@ export interface DBMigration {
 export interface AuthHandler {
   name: string;
   doc: string;
-  user_data?: Decl;
+  user_data?: Type;
   loc: Loc;
 }
 

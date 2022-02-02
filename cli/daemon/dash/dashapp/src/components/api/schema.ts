@@ -1,4 +1,4 @@
-export type TypeName = "struct" | "map" | "list" | "builtin" | "named";
+export type TypeName = "struct" | "map" | "list" | "builtin" | "named" | "type_parameter";
 
 export const typeName: (typ: Type) => TypeName = (typ: Type) => (
   typ.struct ? "struct" :

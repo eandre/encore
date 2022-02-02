@@ -11,7 +11,7 @@ import (
 )
 
 // genSchema generates a JSON payload to match the schema.
-func genSchema(meta *meta.Data, decl *schema.Decl) []byte {
+func genSchema(meta *meta.Data, decl *schema.Type) []byte {
 	if decl == nil {
 		return nil
 	}
@@ -29,8 +29,8 @@ type schemaRenderer struct {
 	seenDecls map[uint32]*schema.Decl
 }
 
-func (r *schemaRenderer) Render(d *schema.Decl) []byte {
-	r.renderType(d.Type)
+func (r *schemaRenderer) Render(d *schema.Type) []byte {
+	r.renderType(d)
 	return r.Buffer()
 }
 

@@ -677,8 +677,8 @@ type RPC struct {
 	Doc            string         `protobuf:"bytes,2,opt,name=doc,proto3" json:"doc,omitempty"`                                                                            // associated documentation
 	ServiceName    string         `protobuf:"bytes,3,opt,name=service_name,json=serviceName,proto3" json:"service_name,omitempty"`                                         // the service the RPC belongs to.
 	AccessType     RPC_AccessType `protobuf:"varint,4,opt,name=access_type,json=accessType,proto3,enum=encore.parser.meta.v1.RPC_AccessType" json:"access_type,omitempty"` // how can the RPC be accessed?
-	RequestSchema  *v1.Decl       `protobuf:"bytes,5,opt,name=request_schema,json=requestSchema,proto3" json:"request_schema,omitempty"`                                   // request schema, or nil
-	ResponseSchema *v1.Decl       `protobuf:"bytes,6,opt,name=response_schema,json=responseSchema,proto3" json:"response_schema,omitempty"`                                // response schema, or nil
+	RequestSchema  *v1.Type       `protobuf:"bytes,5,opt,name=request_schema,json=requestSchema,proto3" json:"request_schema,omitempty"`                                   // request schema, or nil
+	ResponseSchema *v1.Type       `protobuf:"bytes,6,opt,name=response_schema,json=responseSchema,proto3" json:"response_schema,omitempty"`                                // response schema, or nil
 	Proto          RPC_Protocol   `protobuf:"varint,7,opt,name=proto,proto3,enum=encore.parser.meta.v1.RPC_Protocol" json:"proto,omitempty"`
 	Loc            *v1.Loc        `protobuf:"bytes,8,opt,name=loc,proto3" json:"loc,omitempty"`
 	Path           *Path          `protobuf:"bytes,9,opt,name=path,proto3" json:"path,omitempty"`
@@ -745,14 +745,14 @@ func (x *RPC) GetAccessType() RPC_AccessType {
 	return RPC_PRIVATE
 }
 
-func (x *RPC) GetRequestSchema() *v1.Decl {
+func (x *RPC) GetRequestSchema() *v1.Type {
 	if x != nil {
 		return x.RequestSchema
 	}
 	return nil
 }
 
-func (x *RPC) GetResponseSchema() *v1.Decl {
+func (x *RPC) GetResponseSchema() *v1.Type {
 	if x != nil {
 		return x.ResponseSchema
 	}
@@ -797,7 +797,7 @@ type AuthHandler struct {
 	PkgPath  string   `protobuf:"bytes,3,opt,name=pkg_path,json=pkgPath,proto3" json:"pkg_path,omitempty"` // package (service) import path
 	PkgName  string   `protobuf:"bytes,4,opt,name=pkg_name,json=pkgName,proto3" json:"pkg_name,omitempty"` // package (service) name
 	Loc      *v1.Loc  `protobuf:"bytes,5,opt,name=loc,proto3" json:"loc,omitempty"`
-	AuthData *v1.Decl `protobuf:"bytes,6,opt,name=auth_data,json=authData,proto3" json:"auth_data,omitempty"` // custom auth data, or nil
+	AuthData *v1.Type `protobuf:"bytes,6,opt,name=auth_data,json=authData,proto3" json:"auth_data,omitempty"` // custom auth data, or nil
 }
 
 func (x *AuthHandler) Reset() {
@@ -867,7 +867,7 @@ func (x *AuthHandler) GetLoc() *v1.Loc {
 	return nil
 }
 
-func (x *AuthHandler) GetAuthData() *v1.Decl {
+func (x *AuthHandler) GetAuthData() *v1.Type {
 	if x != nil {
 		return x.AuthData
 	}
@@ -1486,11 +1486,11 @@ var file_encore_parser_meta_v1_meta_proto_rawDesc = []byte{
 	0x70, 0x65, 0x12, 0x44, 0x0a, 0x0e, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x5f, 0x73, 0x63,
 	0x68, 0x65, 0x6d, 0x61, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1d, 0x2e, 0x65, 0x6e, 0x63,
 	0x6f, 0x72, 0x65, 0x2e, 0x70, 0x61, 0x72, 0x73, 0x65, 0x72, 0x2e, 0x73, 0x63, 0x68, 0x65, 0x6d,
-	0x61, 0x2e, 0x76, 0x31, 0x2e, 0x44, 0x65, 0x63, 0x6c, 0x52, 0x0d, 0x72, 0x65, 0x71, 0x75, 0x65,
+	0x61, 0x2e, 0x76, 0x31, 0x2e, 0x54, 0x79, 0x70, 0x65, 0x52, 0x0d, 0x72, 0x65, 0x71, 0x75, 0x65,
 	0x73, 0x74, 0x53, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x12, 0x46, 0x0a, 0x0f, 0x72, 0x65, 0x73, 0x70,
 	0x6f, 0x6e, 0x73, 0x65, 0x5f, 0x73, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x18, 0x06, 0x20, 0x01, 0x28,
 	0x0b, 0x32, 0x1d, 0x2e, 0x65, 0x6e, 0x63, 0x6f, 0x72, 0x65, 0x2e, 0x70, 0x61, 0x72, 0x73, 0x65,
-	0x72, 0x2e, 0x73, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x2e, 0x76, 0x31, 0x2e, 0x44, 0x65, 0x63, 0x6c,
+	0x72, 0x2e, 0x73, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x2e, 0x76, 0x31, 0x2e, 0x54, 0x79, 0x70, 0x65,
 	0x52, 0x0e, 0x72, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x53, 0x63, 0x68, 0x65, 0x6d, 0x61,
 	0x12, 0x39, 0x0a, 0x05, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x18, 0x07, 0x20, 0x01, 0x28, 0x0e, 0x32,
 	0x23, 0x2e, 0x65, 0x6e, 0x63, 0x6f, 0x72, 0x65, 0x2e, 0x70, 0x61, 0x72, 0x73, 0x65, 0x72, 0x2e,
@@ -1521,7 +1521,7 @@ var file_encore_parser_meta_v1_meta_proto_rawDesc = []byte{
 	0x6d, 0x61, 0x2e, 0x76, 0x31, 0x2e, 0x4c, 0x6f, 0x63, 0x52, 0x03, 0x6c, 0x6f, 0x63, 0x12, 0x3a,
 	0x0a, 0x09, 0x61, 0x75, 0x74, 0x68, 0x5f, 0x64, 0x61, 0x74, 0x61, 0x18, 0x06, 0x20, 0x01, 0x28,
 	0x0b, 0x32, 0x1d, 0x2e, 0x65, 0x6e, 0x63, 0x6f, 0x72, 0x65, 0x2e, 0x70, 0x61, 0x72, 0x73, 0x65,
-	0x72, 0x2e, 0x73, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x2e, 0x76, 0x31, 0x2e, 0x44, 0x65, 0x63, 0x6c,
+	0x72, 0x2e, 0x73, 0x63, 0x68, 0x65, 0x6d, 0x61, 0x2e, 0x76, 0x31, 0x2e, 0x54, 0x79, 0x70, 0x65,
 	0x52, 0x08, 0x61, 0x75, 0x74, 0x68, 0x44, 0x61, 0x74, 0x61, 0x22, 0xa4, 0x04, 0x0a, 0x09, 0x54,
 	0x72, 0x61, 0x63, 0x65, 0x4e, 0x6f, 0x64, 0x65, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01,
 	0x20, 0x01, 0x28, 0x05, 0x52, 0x02, 0x69, 0x64, 0x12, 0x1a, 0x0a, 0x08, 0x66, 0x69, 0x6c, 0x65,
@@ -1657,7 +1657,8 @@ var file_encore_parser_meta_v1_meta_proto_goTypes = []interface{}{
 	(*Path)(nil),                 // 17: encore.parser.meta.v1.Path
 	(*PathSegment)(nil),          // 18: encore.parser.meta.v1.PathSegment
 	(*v1.Decl)(nil),              // 19: encore.parser.schema.v1.Decl
-	(*v1.Loc)(nil),               // 20: encore.parser.schema.v1.Loc
+	(*v1.Type)(nil),              // 20: encore.parser.schema.v1.Type
+	(*v1.Loc)(nil),               // 21: encore.parser.schema.v1.Loc
 }
 var file_encore_parser_meta_v1_meta_proto_depIdxs = []int32{
 	19, // 0: encore.parser.meta.v1.Data.decls:type_name -> encore.parser.schema.v1.Decl
@@ -1669,13 +1670,13 @@ var file_encore_parser_meta_v1_meta_proto_depIdxs = []int32{
 	10, // 6: encore.parser.meta.v1.Service.rpcs:type_name -> encore.parser.meta.v1.RPC
 	9,  // 7: encore.parser.meta.v1.Service.migrations:type_name -> encore.parser.meta.v1.DBMigration
 	0,  // 8: encore.parser.meta.v1.RPC.access_type:type_name -> encore.parser.meta.v1.RPC.AccessType
-	19, // 9: encore.parser.meta.v1.RPC.request_schema:type_name -> encore.parser.schema.v1.Decl
-	19, // 10: encore.parser.meta.v1.RPC.response_schema:type_name -> encore.parser.schema.v1.Decl
+	20, // 9: encore.parser.meta.v1.RPC.request_schema:type_name -> encore.parser.schema.v1.Type
+	20, // 10: encore.parser.meta.v1.RPC.response_schema:type_name -> encore.parser.schema.v1.Type
 	1,  // 11: encore.parser.meta.v1.RPC.proto:type_name -> encore.parser.meta.v1.RPC.Protocol
-	20, // 12: encore.parser.meta.v1.RPC.loc:type_name -> encore.parser.schema.v1.Loc
+	21, // 12: encore.parser.meta.v1.RPC.loc:type_name -> encore.parser.schema.v1.Loc
 	17, // 13: encore.parser.meta.v1.RPC.path:type_name -> encore.parser.meta.v1.Path
-	20, // 14: encore.parser.meta.v1.AuthHandler.loc:type_name -> encore.parser.schema.v1.Loc
-	19, // 15: encore.parser.meta.v1.AuthHandler.auth_data:type_name -> encore.parser.schema.v1.Decl
+	21, // 14: encore.parser.meta.v1.AuthHandler.loc:type_name -> encore.parser.schema.v1.Loc
+	20, // 15: encore.parser.meta.v1.AuthHandler.auth_data:type_name -> encore.parser.schema.v1.Type
 	13, // 16: encore.parser.meta.v1.TraceNode.rpc_def:type_name -> encore.parser.meta.v1.RPCDefNode
 	14, // 17: encore.parser.meta.v1.TraceNode.rpc_call:type_name -> encore.parser.meta.v1.RPCCallNode
 	15, // 18: encore.parser.meta.v1.TraceNode.static_call:type_name -> encore.parser.meta.v1.StaticCallNode
