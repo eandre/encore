@@ -66,20 +66,28 @@ func (b *Builder) schemaStructToGoType(structure *schema.Struct) *Statement {
 	for i, field := range structure.Fields {
 		statement := Id(field.Name).Add(b.schemaTypeToGoType(field.Typ))
 
+		// Add the field tags
 		tags := make(map[string]string)
-
 		if field.JsonName != "" {
 			tags["json"] = field.JsonName
-
 			if field.Optional {
 				tags["json"] += ",omitEmpty"
 			}
+		}
+
+		if field.Optional {
+			tags["encore"] = "optional"
+		}
+
+		if field.QueryStringName != "" {
+			tags["qs"] = field.QueryStringName
 		}
 
 		if len(tags) > 0 {
 			statement = statement.Tag(tags)
 		}
 
+		// Add the comment
 		if field.Doc != "" {
 			statement = statement.Comment(field.Doc)
 		}
@@ -90,7 +98,7 @@ func (b *Builder) schemaStructToGoType(structure *schema.Struct) *Statement {
 	return Struct(fields...)
 }
 
-// schemaBuiltInToGoType returns the statement representing the Inbuilt type
+// schemaBuiltInToGoType returns the statement representing the BuiltIn type
 func (b *Builder) schemaBuiltInToGoType(builtin schema.Builtin) *Statement {
 	switch builtin {
 	case schema.Builtin_ANY:

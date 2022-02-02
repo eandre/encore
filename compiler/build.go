@@ -434,14 +434,15 @@ func readSourceOfError(filename string, lineNumberStr string, columnNumberStr st
 
 	f, err := os.Open(filename)
 	if err != nil {
-		log.Error().AnErr("error", err).Msgf("Unable to open file %s", filename)
+		log.Error().AnErr("error", err).Str("filename", filename).Msg("Unable to open file")
 		return ""
 	}
 	defer func() { _ = f.Close() }()
 
-	var builder strings.Builder
-
-	var currentLine int64
+	var (
+		builder     strings.Builder
+		currentLine int64
+	)
 
 	builder.WriteRune('\n')
 
