@@ -39,13 +39,18 @@ export enum Builtin {
  * structures looking for any uses of the TypeParameterPtr type
  */
 export interface Type {
-  typ?:
-    | { $case: "named"; named: Named }
-    | { $case: "struct"; struct: Struct }
-    | { $case: "map"; map: Map }
-    | { $case: "list"; list: List }
-    | { $case: "builtin"; builtin: Builtin }
-    | { $case: "type_parameter"; type_parameter: TypeParameterRef };
+  /** Concrete / non-parameterized Types */
+  named: Named | undefined;
+  /** The type is a struct definition */
+  struct: Struct | undefined;
+  /** The type is a map */
+  map: Map | undefined;
+  /** The type is a slice */
+  list: List | undefined;
+  /** The type is one of the base built in types within Go */
+  builtin: Builtin | undefined;
+  /** Abstract Types */
+  type_parameter: TypeParameterRef | undefined;
 }
 
 /** TypeParameterRef is a reference to a `TypeParameter` within a declaration block */
@@ -89,13 +94,13 @@ export interface Decl {
   /** The name of the type as assigned in the code */
   name: string;
   /** The underlying type of this declaration */
-  type: Type | undefined;
+  type: Type;
   /** Any type parameters on this declaration (note; instantiated types used within this declaration would not be captured here) */
   type_params: TypeParameter[];
   /** The comment block on the type */
   doc: string;
   /** The location of the declaration within the project */
-  loc: Loc | undefined;
+  loc: Loc;
 }
 
 /**
@@ -145,7 +150,7 @@ export interface Struct {
 /** Field represents a field within a struct */
 export interface Field {
   /** The type of the field */
-  typ: Type | undefined;
+  typ: Type;
   /** The name of the field */
   name: string;
   /** The comment for the field */
@@ -161,13 +166,13 @@ export interface Field {
 /** Map represents a map Type */
 export interface Map {
   /** The type of the key for this map */
-  key: Type | undefined;
+  key: Type;
   /** The type of the value of this map */
-  value: Type | undefined;
+  value: Type;
 }
 
 /** List represents a list type (array or slice) */
 export interface List {
   /** The type of the elements in the list */
-  elem: Type | undefined;
+  elem: Type;
 }

@@ -16,13 +16,13 @@ Foo Foo
 type Wrapper[T any] = T
 
 type Tuple[A any, B any] struct {
-A A
-B B
+  A A
+  B B
 }
 
 type Request struct {
-Foo Foo
-Bar string `json:"-"`
+    Foo Foo `encore:"optional"`
+    Bar string `json:"-"`
     Baz string `json:"boo"`
     Raw json.RawMessage
 }

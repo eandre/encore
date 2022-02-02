@@ -538,11 +538,11 @@ func (ts *ts) writeTyp(ns string, typ *schema.Type, numIndents int) {
 			if n := field.Typ.GetNamed(); n != nil {
 				recursiveType = ts.typs.IsRecursiveRef(ts.currDecl.Id, n.Id)
 			}
-			if field.Optional || recursiveType {
-				ts.WriteString("?")
-			}
 			ts.WriteString(": ")
 			ts.writeTyp(ns, field.Typ, numIndents+1)
+			if field.Optional || recursiveType {
+				ts.WriteString(" | undefined")
+			}
 			ts.WriteString("\n")
 
 			// Add another empty line if we have a doc comment

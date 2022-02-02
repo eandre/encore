@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { Decl, Type, Loc } from "../../../../encore/parser/schema/v1/schema.pb";
+import { Loc, Decl, Type } from "../../../../encore/parser/schema/v1/schema.pb";
 
 export const protobufPackage = "encore.parser.meta.v1";
 
@@ -11,7 +11,7 @@ export interface Data {
   decls: Decl[];
   pkgs: Package[];
   svcs: Service[];
-  auth_handler: AuthHandler | undefined;
+  auth_handler: AuthHandler;
 }
 
 /**
@@ -69,12 +69,12 @@ export interface RPC {
   /** how can the RPC be accessed? */
   access_type: RPC_AccessType;
   /** request schema, or nil */
-  request_schema: Type | undefined;
+  request_schema?: Type | undefined;
   /** response schema, or nil */
-  response_schema: Type | undefined;
+  response_schema?: Type | undefined;
   proto: RPC_Protocol;
-  loc: Loc | undefined;
-  path: Path | undefined;
+  loc: Loc;
+  path: Path;
   http_methods: string[];
 }
 
@@ -98,9 +98,9 @@ export interface AuthHandler {
   pkg_path: string;
   /** package (service) name */
   pkg_name: string;
-  loc: Loc | undefined;
+  loc: Loc;
   /** custom auth data, or nil */
-  auth_data: Type | undefined;
+  auth_data?: Type | undefined;
 }
 
 export interface TraceNode {
@@ -113,11 +113,10 @@ export interface TraceNode {
   src_line_end: number;
   src_col_start: number;
   src_col_end: number;
-  context?:
-    | { $case: "rpc_def"; rpc_def: RPCDefNode }
-    | { $case: "rpc_call"; rpc_call: RPCCallNode }
-    | { $case: "static_call"; static_call: StaticCallNode }
-    | { $case: "auth_handler_def"; auth_handler_def: AuthHandlerDefNode };
+  rpc_def: RPCDefNode | undefined;
+  rpc_call: RPCCallNode | undefined;
+  static_call: StaticCallNode | undefined;
+  auth_handler_def: AuthHandlerDefNode | undefined;
 }
 
 export interface RPCDefNode {

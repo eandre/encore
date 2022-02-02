@@ -48,16 +48,16 @@ message DBMigration {
 }
 
 message RPC {
-  string          name            = 1; // name of the RPC endpoint
-  string          doc             = 2; // associated documentation
-  string          service_name    = 3; // the service the RPC belongs to.
-  AccessType      access_type     = 4; // how can the RPC be accessed?
-  schema.v1.Type  request_schema  = 5; // request schema, or nil
-  schema.v1.Type  response_schema = 6; // response schema, or nil
-  Protocol        proto           = 7;
-  schema.v1.Loc   loc             = 8;
-  Path            path            = 9;
-  repeated string http_methods    = 10;
+  string                    name            = 1; // name of the RPC endpoint
+  string                    doc             = 2; // associated documentation
+  string                    service_name    = 3; // the service the RPC belongs to.
+  AccessType                access_type     = 4; // how can the RPC be accessed?
+  optional schema.v1.Type  request_schema  = 5; // request schema, or nil
+  optional schema.v1.Type  response_schema = 6; // response schema, or nil
+  Protocol                 proto           = 7;
+  schema.v1.Loc            loc             = 8;
+  Path                     path            = 9;
+  repeated string          http_methods    = 10;
 
   enum AccessType {
     PRIVATE = 0;
@@ -72,12 +72,12 @@ message RPC {
 }
 
 message AuthHandler {
-  string name              = 1;
-  string doc               = 2;
-  string pkg_path          = 3; // package (service) import path
-  string pkg_name          = 4; // package (service) name
-  schema.v1.Loc loc        = 5;
-  schema.v1.Type auth_data = 6; // custom auth data, or nil
+  string                  name      = 1;
+  string                  doc       = 2;
+  string                  pkg_path  = 3; // package (service) import path
+  string                  pkg_name  = 4; // package (service) name
+  schema.v1.Loc           loc       = 5;
+  optional schema.v1.Type auth_data = 6; // custom auth data, or nil
 }
 
 message TraceNode {
