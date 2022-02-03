@@ -8,7 +8,7 @@ import JSONRPCConn from "~lib/client/jsonrpc";
 import {copyToClipboard} from "~lib/clipboard";
 import {APIMeta, PathSegment, RPC, Service} from "./api";
 import CM from "./cm/CM";
-import {Builtin, ListType, MapType, NamedType, StructType, Type, TypeParameterRef} from "./schema";
+import {Type} from "./schema";
 import {JSONDialect} from "~c/api/SchemaView";
 
 interface Props {

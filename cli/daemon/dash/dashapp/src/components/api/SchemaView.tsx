@@ -1,15 +1,4 @@
-import {
-  Builtin,
-  BuiltinType, Decl,
-  Field,
-  List,
-  ListType,
-  MapType,
-  NamedType,
-  StructType,
-  Type,
-  TypeParameterRef,
-} from "./schema";
+import {Builtin, Decl, Field, ListType, MapType, NamedType, StructType, Type, TypeParameterRef } from "./schema";
 import React from "react";
 import {APIMeta} from "./api";
 import CM from "~c/api/cm/CM";
@@ -34,7 +23,7 @@ abstract class DialectIface {
   readonly meta: APIMeta;
 
   constructor(meta: APIMeta) {
-    this.meta = meta;
+    this.meta = meta
   }
 
   abstract render(d: Type): JSX.Element
@@ -57,7 +46,7 @@ abstract class TextBasedDialect extends DialectIface {
     this.level = 0
   }
 
-  render(d: Type) {
+  render(d: Type): JSX.Element {
     const srcCode = this.renderAsText(d)
 
     return <CM cfg={{
@@ -86,7 +75,6 @@ abstract class TextBasedDialect extends DialectIface {
     this.write("<unknown type>")
   }
 
-
   protected renderNamed(t: NamedType) {
     if (this.seenDecls.has(t.id)) {
       this.writeSeenDecl(this.meta.decls[t.id])
@@ -113,8 +101,7 @@ abstract class TextBasedDialect extends DialectIface {
   protected abstract renderStruct(t: StructType): void
   protected abstract renderMap(t: MapType): void
   protected abstract renderList(t: ListType): void
-  protected abstract renderBuiltin(t: BuiltinType): void
-
+  protected abstract renderBuiltin(t: Builtin): void
 
   protected indent() {
     this.write(" ".repeat(this.level*4))
@@ -185,27 +172,27 @@ class GoDialect extends TextBasedDialect {
 
   renderBuiltin(t: Builtin) {
     switch (t) {
-    case Builtin.ANY: return this.write("interface{}");
-    case Builtin.BOOL: return this.write("bool");
-    case Builtin.INT: return this.write("int");
-    case Builtin.INT8: return this.write("int8");
-    case Builtin.INT16: return this.write("int16");
-    case Builtin.INT32: return this.write("int32");
-    case Builtin.INT64: return this.write("int64");
-    case Builtin.UINT: return this.write("uint");
-    case Builtin.UINT8: return this.write("uint8");
-    case Builtin.UINT16: return this.write("uint16");
-    case Builtin.UINT32: return this.write("uint32");
-    case Builtin.UINT64: return this.write("uint64");
-    case Builtin.FLOAT32: return this.write("float32");
-    case Builtin.FLOAT64: return this.write("float64");
-    case Builtin.STRING: return this.write("string");
-    case Builtin.BYTES: return this.write("[]byte");
-    case Builtin.TIME: return this.write("time.Time");
-    case Builtin.UUID: return this.write("uuid.UUID");
-    case Builtin.JSON: return this.write("json.RawMessage");
-    case Builtin.USER_ID:return  this.write("auth.UID");
-    case Builtin.UNRECOGNIZED: return this.write("<unknown>");
+    case Builtin.ANY: return this.write("interface{}")
+    case Builtin.BOOL: return this.write("bool")
+    case Builtin.INT: return this.write("int")
+    case Builtin.INT8: return this.write("int8")
+    case Builtin.INT16: return this.write("int16")
+    case Builtin.INT32: return this.write("int32")
+    case Builtin.INT64: return this.write("int64")
+    case Builtin.UINT: return this.write("uint")
+    case Builtin.UINT8: return this.write("uint8")
+    case Builtin.UINT16: return this.write("uint16")
+    case Builtin.UINT32: return this.write("uint32")
+    case Builtin.UINT64: return this.write("uint64")
+    case Builtin.FLOAT32: return this.write("float32")
+    case Builtin.FLOAT64: return this.write("float64")
+    case Builtin.STRING: return this.write("string")
+    case Builtin.BYTES: return this.write("[]byte")
+    case Builtin.TIME: return this.write("time.Time")
+    case Builtin.UUID: return this.write("uuid.UUID")
+    case Builtin.JSON: return this.write("json.RawMessage")
+    case Builtin.USER_ID:return  this.write("auth.UID")
+    case Builtin.UNRECOGNIZED: return this.write("<unknown>")
     }
 
     return unreachableUnknownType(t)
@@ -267,29 +254,29 @@ class TypescriptDialect extends TextBasedDialect {
     this.write("[]")
   }
 
-  renderBuiltin(t: BuiltinType) {
+  renderBuiltin(t: Builtin) {
     switch (t) {
-      case Builtin.ANY: return this.write("any");
-      case Builtin.BOOL: return this.write("boolean");
-      case Builtin.INT: return this.write("int");
-      case Builtin.INT8: return this.write("int8");
-      case Builtin.INT16: return this.write("int16");
-      case Builtin.INT32: return this.write("int32");
-      case Builtin.INT64: return this.write("int64");
-      case Builtin.UINT: return this.write("uint");
-      case Builtin.UINT8: return this.write("uint8");
-      case Builtin.UINT16: return this.write("uint16");
-      case Builtin.UINT32: return this.write("uint32");
-      case Builtin.UINT64: return this.write("uint64");
-      case Builtin.FLOAT32: return this.write("float32");
-      case Builtin.FLOAT64: return this.write("float64");
-      case Builtin.STRING: return this.write("string");
-      case Builtin.BYTES: return this.write("[]byte");
-      case Builtin.TIME: return this.write("Time");
-      case Builtin.UUID: return this.write("UUID");
-      case Builtin.JSON: return this.write("any");
-      case Builtin.USER_ID: return this.write("UserID");
-      case Builtin.UNRECOGNIZED: return this.write("<unknown>");
+      case Builtin.ANY: return this.write("any")
+      case Builtin.BOOL: return this.write("boolean")
+      case Builtin.INT: return this.write("int")
+      case Builtin.INT8: return this.write("int8")
+      case Builtin.INT16: return this.write("int16")
+      case Builtin.INT32: return this.write("int32")
+      case Builtin.INT64: return this.write("int64")
+      case Builtin.UINT: return this.write("uint")
+      case Builtin.UINT8: return this.write("uint8")
+      case Builtin.UINT16: return this.write("uint16")
+      case Builtin.UINT32: return this.write("uint32")
+      case Builtin.UINT64: return this.write("uint64")
+      case Builtin.FLOAT32: return this.write("float32")
+      case Builtin.FLOAT64: return this.write("float64")
+      case Builtin.STRING: return this.write("string")
+      case Builtin.BYTES: return this.write("[]byte")
+      case Builtin.TIME: return this.write("Time")
+      case Builtin.UUID: return this.write("UUID")
+      case Builtin.JSON: return this.write("any")
+      case Builtin.USER_ID: return this.write("UserID")
+      case Builtin.UNRECOGNIZED: return this.write("<unknown>")
     }
 
     return unreachableUnknownType(t)
@@ -365,7 +352,7 @@ export class JSONDialect extends TextBasedDialect {
       case Builtin.TIME: return this.write("\"2009-11-10T23:00:00Z\"")
       case Builtin.UUID: return this.write("\"7d42f515-3517-4e76-be13-30880443546f\"")
       case Builtin.JSON: return this.write("{\"some json data\": true}")
-      case Builtin.USER_ID: return this.write("userID")
+      case Builtin.USER_ID: return this.write("\"userID\"")
       case Builtin.UNRECOGNIZED: return this.write("<unknown>")
     }
 
@@ -450,7 +437,7 @@ class TableDialect extends DialectIface {
     case Builtin.BYTES: return "bytes"
     case Builtin.TIME: return "RFC 3339-formatted timestamp"
     case Builtin.UUID: return "UUID"
-    case Builtin.JSON: return "unspecified JSON"
+    case Builtin.JSON: return "arbitrary JSON"
     case Builtin.USER_ID: return "User ID"
     case Builtin.UNRECOGNIZED: return "<unknown>"
     }

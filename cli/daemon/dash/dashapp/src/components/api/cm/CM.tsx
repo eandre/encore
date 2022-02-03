@@ -67,11 +67,11 @@ export default class CM extends React.Component<Props> {
   }
 
   render() {
-    const shadow = this.props.noShadow ? "" : "shadow-inner "
+    const shadow = this.props.noShadow ? "" : "shadow-inner"
 
     return (
       <div ref={this.container}
-          className={`relative h-full font-mono subpixel-antialiased ${shadow}${this.props.className}`}>
+          className={`relative h-full font-mono subpixel-antialiased ${shadow} ${this.props.className}`}>
         <style>{`
           .CodeMirror {
             height: 100%;

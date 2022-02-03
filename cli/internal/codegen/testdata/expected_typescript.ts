@@ -16,7 +16,7 @@ export namespace svc {
     }
 
     export interface Request {
-        Foo: Foo | undefined
+        Foo?: Foo
         boo: string
         Raw: JSONValue
     }

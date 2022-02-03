@@ -9,7 +9,7 @@ import "encore/parser/schema/v1/schema.proto";
 // Data is the metadata associated with an app version.
 message Data {
   string                  module_path  = 1; // app module path
-	string                  app_version  = 2;
+  string                  app_version  = 2;
   repeated schema.v1.Decl decls        = 3;
   repeated Package        pkgs         = 4;
   repeated Service        svcs         = 5;
