@@ -18,7 +18,7 @@ func TestCodegen(t *testing.T) {
 			Gen:           gen,
 			Desc:          desc,
 			MainModule:    mainModule,
-			RuntimeModule: loader.MainModule(),
+			RuntimeModule: loader.RuntimeModule(),
 		}
 		apigen.Process(params)
 	}

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"reflect"
 	"runtime/debug"
 	"strconv"
@@ -76,6 +77,13 @@ type Desc[Req, Resp any] struct {
 
 	EncodeResp func(http.ResponseWriter, jsoniter.API, Resp) error
 	CloneResp  func(Resp) (Resp, error)
+
+	// EncodeExternalReq encodes a request, writing the payload to the stream
+	// and headers and query strings to the returned maps.
+	EncodeExternalReq func(Req, *jsoniter.Stream) (http.Header, url.Values, error)
+
+	// DecodeExternalResp decodes the response, reading the payload into the response object.
+	DecodeExternalResp func(*http.Response, jsoniter.API) (Resp, error)
 
 	// GlobalMiddlewareIDs is the ordered list of global middleware IDs
 	// to invoke before calling the API handler.
