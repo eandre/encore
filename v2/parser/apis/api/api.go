@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"golang.org/x/exp/slices"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"encr.dev/pkg/errors"
 	"encr.dev/pkg/option"
@@ -31,7 +32,13 @@ const (
 	Auth AccessType = "auth"
 )
 
-type Endpoint struct {
+type Endpoint interface {
+	resource.Resource
+	EndpointName() string
+	EndpointPath() *resourcepaths.Path
+}
+
+type HTTPEndpoint struct {
 	errs *perr.List
 
 	Name             string
@@ -56,20 +63,23 @@ type Endpoint struct {
 	respEncoding *apienc.ResponseEncoding
 }
 
-func (ep *Endpoint) GoString() string {
+func (ep *HTTPEndpoint) EndpointName() string              { return ep.Name }
+func (ep *HTTPEndpoint) EndpointPath() *resourcepaths.Path { return ep.Path }
+
+func (ep *HTTPEndpoint) GoString() string {
 	if ep == nil {
-		return "(*api.Endpoint)(nil)"
+		return "(*api.HTTPEndpoint)(nil)"
 	}
-	return fmt.Sprintf("&api.Endpoint{Name: %q}", ep.Name)
+	return fmt.Sprintf("&api.HTTPEndpoint{Name: %q}", ep.Name)
 }
 
-func (ep *Endpoint) Kind() resource.Kind       { return resource.APIEndpoint }
-func (ep *Endpoint) Package() *pkginfo.Package { return ep.File.Pkg }
-func (ep *Endpoint) Pos() token.Pos            { return ep.Decl.AST.Pos() }
-func (ep *Endpoint) End() token.Pos            { return ep.Decl.AST.End() }
-func (ep *Endpoint) SortKey() string           { return ep.File.Pkg.ImportPath.String() + "." + ep.Name }
+func (ep *HTTPEndpoint) Kind() resource.Kind       { return resource.APIEndpoint }
+func (ep *HTTPEndpoint) Package() *pkginfo.Package { return ep.File.Pkg }
+func (ep *HTTPEndpoint) Pos() token.Pos            { return ep.Decl.AST.Pos() }
+func (ep *HTTPEndpoint) End() token.Pos            { return ep.Decl.AST.End() }
+func (ep *HTTPEndpoint) SortKey() string           { return ep.File.Pkg.ImportPath.String() + "." + ep.Name }
 
-func (ep *Endpoint) RequestEncoding() []*apienc.RequestEncoding {
+func (ep *HTTPEndpoint) RequestEncoding() []*apienc.RequestEncoding {
 	if ep.Request == nil {
 		return nil
 	}
@@ -81,7 +91,7 @@ func (ep *Endpoint) RequestEncoding() []*apienc.RequestEncoding {
 	return ep.reqEncoding
 }
 
-func (ep *Endpoint) ResponseEncoding() *apienc.ResponseEncoding {
+func (ep *HTTPEndpoint) ResponseEncoding() *apienc.ResponseEncoding {
 	ep.respEncOnce.Do(func() {
 		ep.respEncoding = apienc.DescribeResponse(ep.errs, ep.Response)
 	})
@@ -99,7 +109,7 @@ type ParseData struct {
 }
 
 // Parse parses an API endpoint. It may return nil on errors.
-func Parse(d ParseData) *Endpoint {
+func Parse(d ParseData) *HTTPEndpoint {
 	rpc, ok := validateDirective(d.Errs, d.Dir)
 	if !ok {
 		return nil
@@ -163,7 +173,7 @@ func Parse(d ParseData) *Endpoint {
 	return rpc
 }
 
-func initTypedRPC(errs *perr.List, endpoint *Endpoint) {
+func initTypedRPC(errs *perr.List, endpoint *HTTPEndpoint) {
 	decl := endpoint.Decl
 	sig := decl.Type
 	numParams := len(sig.Params)
@@ -243,7 +253,7 @@ func initTypedRPC(errs *perr.List, endpoint *Endpoint) {
 	}
 }
 
-func initRawRPC(errs *perr.List, endpoint *Endpoint) {
+func initRawRPC(errs *perr.List, endpoint *HTTPEndpoint) {
 	decl := endpoint.Decl
 	sig := decl.Type
 	params := sig.Params
@@ -296,8 +306,8 @@ func validatePathParam(errs *perr.List, param schema.Param, seg *resourcepaths.S
 
 // validateDirective validates the given encore:api directive
 // and returns an API with the respective fields set.
-func validateDirective(errs *perr.List, dir *directive.Directive) (*Endpoint, bool) {
-	endpoint := &Endpoint{
+func validateDirective(errs *perr.List, dir *directive.Directive) (*HTTPEndpoint, bool) {
+	endpoint := &HTTPEndpoint{
 		Raw: dir.HasOption("raw"),
 	}
 
@@ -386,3 +396,33 @@ func validateDirective(errs *perr.List, dir *directive.Directive) (*Endpoint, bo
 
 	return endpoint, true
 }
+
+type GRPCEndpoint struct {
+	Name      string
+	FullName  protoreflect.FullName
+	Path      *resourcepaths.Path
+	Decl      *schema.FuncDecl
+	ProtoDesc protoreflect.MethodDescriptor
+}
+
+func (ep *GRPCEndpoint) Pos() token.Pos { return ep.Decl.AST.Pos() }
+func (ep *GRPCEndpoint) End() token.Pos { return ep.Decl.AST.End() }
+
+func (ep *GRPCEndpoint) Kind() resource.Kind { return resource.APIEndpoint }
+
+func (ep *GRPCEndpoint) SortKey() string { return string(ep.FullName) }
+
+func (ep *GRPCEndpoint) EndpointName() string              { return ep.Name }
+func (ep *GRPCEndpoint) EndpointPath() *resourcepaths.Path { return ep.Path }
+
+func (ep *GRPCEndpoint) GoString() string {
+	if ep == nil {
+		return "(*api.GRPCEndpoint)(nil)"
+	}
+	return fmt.Sprintf("&api.GRPCEndpoint{Name: %q}", ep.Name)
+}
+
+var (
+	_ Endpoint = (*GRPCEndpoint)(nil)
+	_ Endpoint = (*HTTPEndpoint)(nil)
+)
