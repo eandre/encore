@@ -112,6 +112,7 @@ var Parser = &resourceparser.Parser{
 					case "service":
 						ss := servicestruct.Parse(p.Ctx, servicestruct.ParseData{
 							Errs:   p.Errs,
+							Loader: p.Loader,
 							Schema: p.SchemaParser,
 							Proto:  p.ProtoParser,
 							File:   file,
@@ -136,11 +137,11 @@ var Parser = &resourceparser.Parser{
 		// For all service structs that include a protobuf service definition,
 		// parse the methods to emit API endpoints.
 		for _, ss := range serviceStructs {
-			if svc, ok := ss.Proto.Get(); ok {
+			if grpc, ok := ss.GRPC.Get(); ok {
 				eps := grpcservice.ParseEndpoints(grpcservice.ServiceDesc{
 					Errs:   p.Errs,
 					Schema: p.SchemaParser,
-					Proto:  svc,
+					Proto:  grpc.Service,
 					Pkg:    p.Pkg,
 					Decl:   ss.Decl,
 				})

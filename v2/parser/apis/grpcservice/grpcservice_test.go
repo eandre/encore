@@ -42,6 +42,9 @@ type Foo struct {}
 func (f *Foo) Bar(ctx context.Context) error { return nil }
 -- proto/path/to/grpc.proto --
 syntax = "proto3";
+
+option go_package = "example.com/generated";
+
 package path.to.grpc;
 
 service Service {
@@ -49,6 +52,8 @@ service Service {
 }
 message BarRequest {}
 message BarResponse {}
+-- generated/generated.go --
+package generated
 `,
 			want: []*api.GRPCEndpoint{
 				{
@@ -120,6 +125,7 @@ package foo
 
 			pd := servicestruct.ParseData{
 				Errs:   tc.Errs,
+				Loader: l,
 				Proto:  protoParser,
 				Schema: schemaParser,
 				File:   f,
@@ -130,10 +136,10 @@ package foo
 
 			var endpoints []*api.GRPCEndpoint
 			if ss := servicestruct.Parse(tc.Ctx, pd); ss != nil {
-				if proto, ok := ss.Proto.Get(); ok {
+				if desc, ok := ss.GRPC.Get(); ok {
 					endpoints = grpcservice.ParseEndpoints(grpcservice.ServiceDesc{
 						Errs:   tc.Errs,
-						Proto:  proto,
+						Proto:  desc.Service,
 						Schema: schemaParser,
 						Pkg:    pd.File.Pkg,
 						Decl:   ss.Decl,

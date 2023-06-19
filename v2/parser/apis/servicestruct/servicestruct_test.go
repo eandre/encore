@@ -54,11 +54,15 @@ type Foo struct {}
 syntax = "proto3";
 package path.to.grpc;
 
+option go_package = "example.com/generated";
+
 service Service {
 	rpc Bar (BarRequest) returns (BarResponse);
 }
 message BarRequest {}
 message BarResponse {}
+-- generated/generated.go --
+package generated
 `,
 			want: &ServiceStruct{
 				Decl: &schema.TypeDecl{
@@ -76,6 +80,9 @@ message BarResponse {}
 type Foo struct {}
 -- proto/path/to/grpc.proto --
 syntax = "proto3";
+
+option go_package = "example.com/generated";
+
 package path.to.grpc;
 
 service Service {
@@ -83,6 +90,8 @@ service Service {
 }
 message BarRequest {}
 message BarResponse {}
+-- generated/generated.go --
+package generated
 `,
 			want: &ServiceStruct{
 				Decl: &schema.TypeDecl{
@@ -243,6 +252,7 @@ package foo
 
 			pd := ParseData{
 				Errs:   tc.Errs,
+				Loader: l,
 				Proto:  protoParser,
 				Schema: schemaParser,
 				File:   f,

@@ -14,6 +14,7 @@ import (
 
 	"encr.dev/pkg/paths"
 	"encr.dev/v2/internals/pkginfo"
+	"encr.dev/v2/internals/protoparse"
 	"encr.dev/v2/internals/schema"
 	"encr.dev/v2/internals/testutil"
 	"encr.dev/v2/parser/resource"
@@ -67,6 +68,7 @@ package foo
 
 			l := pkginfo.New(tc.Context)
 			schemaParser := schema.NewParser(tc.Context, l)
+			protoParser := protoparse.NewParser(tc.Errs, []paths.FS{tc.MainModuleDir})
 
 			if len(test.WantErrs) > 0 {
 				defer tc.DeferExpectError(test.WantErrs...)
@@ -78,6 +80,8 @@ package foo
 			pkg := l.MustLoadPkg(token.NoPos, "example.com")
 			pass := &resourceparser.Pass{
 				Context:      tc.Context,
+				Loader:       l,
+				ProtoParser:  protoParser,
 				SchemaParser: schemaParser,
 				Pkg:          pkg,
 			}

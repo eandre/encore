@@ -47,6 +47,11 @@ func (app *App) Run() error {
 		serveCh <- app.api.Serve(ln)
 	}()
 
+	if err := app.api.InitializeGRPC(); err != nil {
+		app.shutdown.Shutdown()
+		return err
+	}
+
 	if err := app.service.InitializeServices(); err != nil {
 		app.shutdown.Shutdown()
 		return err

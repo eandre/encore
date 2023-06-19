@@ -81,6 +81,8 @@ func (p *Parser) Parse() *Result {
 
 		pass := &resourceparser.Pass{
 			Context:      p.c,
+			Loader:       p.loader,
+			ProtoParser:  p.protoParser,
 			SchemaParser: p.schemaParser,
 			Pkg:          pkg,
 		}

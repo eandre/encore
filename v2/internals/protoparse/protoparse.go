@@ -42,7 +42,7 @@ func (p *Parser) ParseFile(ctx context.Context, srcNode ast.Node, filepath strin
 func (p *Parser) parseFile(ctx context.Context, srcNode ast.Node, file string) linker.File {
 	result, err := p.c.Compile(ctx, file)
 	if err != nil {
-		p.errs.Assert(errInvalidProtoFile(file).AtGoNode(srcNode))
+		p.errs.Assert(errInvalidProtoFile(file).AtGoNode(srcNode).Wrapping(err))
 	}
 
 	return result[0] // guaranteed to be present and correct since we only compile one file

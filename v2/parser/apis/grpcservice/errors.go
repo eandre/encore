@@ -26,4 +26,19 @@ var (
 		"gRPC service not found",
 		"The gRPC service \"%s\" cannot be found in the file \"%s\".",
 	)
+
+	errGoPkgNotFound = errRange.Newf(
+		"Generated gRPC package not found",
+		"The gRPC package \"%s\" cannot be found in the file \"%s\".",
+	)
+
+	errInvalidGoPkg = errRange.Newf(
+		"Invalid gRPC go_package option",
+		"The gRPC package \"%s\" has an invalid go_package option: \"%s\".",
+	)
+
+	errNoGoPkgOption = errRange.Newf(
+		"Cannot determine location of generated gRPC code",
+		"Could not determine where the generated code for gRPC package \"%s\" is. Use 'option go_package' to specify the Go package path.",
+	)
 )

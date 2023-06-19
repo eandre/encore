@@ -11,6 +11,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/zerolog"
+	"google.golang.org/grpc"
 
 	encore "encore.dev"
 	"encore.dev/appruntime/apisdk/api/svcauth"
@@ -118,6 +119,9 @@ type Server struct {
 	encore          *httprouter.Router
 	internalAuth    map[string]svcauth.ServiceAuth // auth methods for internal service-to-service calls
 	httpsrv         *http.Server
+
+	grpcSrv      *grpc.Server
+	grpcServices []grpcServiceDesc
 
 	callCtr uint64
 
@@ -346,6 +350,14 @@ func (s *Server) handler(w http.ResponseWriter, req *http.Request) {
 		router, fallbackRouter = s.private, s.privateFallback
 	}
 	req = req.WithContext(context.WithValue(req.Context(), metaContextKeyAuthInfo, callMeta))
+
+	// If the request is to an internal endpoint, check if it's gRPC.
+	if router == s.private {
+		if req.ProtoMajor == 2 && strings.HasPrefix(req.Header.Get("Content-Type"), "application/grpc") {
+			s.grpcSrv.ServeHTTP(w, req)
+			return
+		}
+	}
 
 	// We use EscapedPath rather than `req.URL.Path` because if the path contains an encoded
 	// forward slash as %2F we don't want the router to treat that as a segment split.

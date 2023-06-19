@@ -1,6 +1,8 @@
 package servicestructgen
 
 import (
+	"fmt"
+
 	. "github.com/dave/jennifer/jen"
 
 	"encr.dev/pkg/option"
@@ -25,9 +27,19 @@ func Gen(gen *codegen.Generator, svc *app.Service, s *servicestruct.ServiceStruc
 		Id("SetupDefLoc"): Lit(gen.TraceNodes.SvcStruct(s)),
 	}))
 
-	f.Jen.Func().Id("init").Params().Block(
-		Qual("encore.dev/appruntime/apisdk/service", "Register").Call(decl.Qual()),
-	)
+	f.Jen.Func().Id("init").Params().BlockFunc(func(g *Group) {
+		g.Qual("encore.dev/appruntime/apisdk/service", "Register").Call(decl.Qual())
+
+		if grpc, ok := s.GRPC.Get(); ok {
+			pkgPath := grpc.GenPkg.ImportPath.String()
+			g.Qual("encore.dev/appruntime/apisdk/api", "RegisterGRPCService").
+				Types(Qual(pkgPath, fmt.Sprintf("%sServer", grpc.Service.Name()))).
+				Call(
+					decl.Qual(),
+					Qual(pkgPath, fmt.Sprintf("Register%sServer", grpc.Service.Name())),
+				)
+		}
+	})
 
 	return decl
 }

@@ -2,7 +2,15 @@
 
 package api
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+	"runtime/debug"
+
+	"google.golang.org/grpc"
+
+	"encore.dev/appruntime/apisdk/service"
+)
 
 func RegisterEndpoint(handler Handler) {
 	Singleton.registerEndpoint(handler)
@@ -24,4 +32,35 @@ func RegisterAuthDataType[T any]() {
 
 func RegisterGlobalMiddleware(mw *Middleware) {
 	Singleton.registerGlobalMiddleware(mw)
+}
+
+// RegisterGRPCService registers a new gRPC service to be served.
+// It's called by generated code.
+func RegisterGRPCService[T any](init service.Initializer, registerFunc func(grpc.ServiceRegistrar, T)) {
+	fn := func(srv *grpc.Server) (err error) {
+		defer func() {
+			if e := recover(); e != nil {
+				err = fmt.Errorf("service %s panicked while initializing: %v\n%s",
+					init.ServiceName(), e, debug.Stack())
+			}
+		}()
+
+		ss, err := init.GetDecl()
+		if err != nil {
+			return err
+		}
+
+		t, ok := ss.(T)
+		if !ok {
+			return fmt.Errorf("internal error: service %s does not implement gRPC service interface",
+				init.ServiceName())
+		}
+		registerFunc(srv, t)
+		return nil
+	}
+
+	Singleton.registerGRPCService(grpcServiceDesc{
+		svcName:   init.ServiceName(),
+		registrar: fn,
+	})
 }

@@ -32,6 +32,7 @@ var RunAlways = []paths.Pkg{"*"}
 
 type Pass struct {
 	*parsectx.Context
+	Loader       *pkginfo.Loader
 	SchemaParser *schema.Parser
 	ProtoParser  *protoparse.Parser
 
