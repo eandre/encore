@@ -1,6 +1,9 @@
 package api
 
-import "google.golang.org/grpc"
+import (
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
+)
 
 type grpcRegistrar func(srv *grpc.Server) error
 
@@ -29,5 +32,10 @@ func (s *Server) InitializeGRPC() error {
 	}
 	s.rootLogger.Info().Msgf("registered %d gRPC service%s",
 		len(s.grpcServices), pluralS)
+
+	if s.runtime.EnvType != "production" {
+		reflection.Register(s.grpcSrv)
+	}
+
 	return nil
 }

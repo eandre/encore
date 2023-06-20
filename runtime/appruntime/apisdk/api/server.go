@@ -11,6 +11,8 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/zerolog"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
 
 	encore "encore.dev"
@@ -187,8 +189,10 @@ func NewServer(static *config.Static, runtime *config.Runtime, rt *reqtrack.Requ
 		static.CORSExposeHeaders,
 		http.HandlerFunc(s.handler),
 	)
+
+	http2srv := &http2.Server{}
 	s.httpsrv = &http.Server{
-		Handler: handler,
+		Handler: h2c.NewHandler(handler, http2srv),
 	}
 
 	s.registerEncoreRoutes()

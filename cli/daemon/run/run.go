@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -26,6 +28,8 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 
 	"encore.dev/appruntime/exported/config"
 	"encore.dev/appruntime/exported/experiments"
@@ -201,7 +205,9 @@ func (r *Run) start(ln net.Listener, tracker *optracker.OpTracker) (err error) {
 	}()
 
 	// Run the http server until the app exits.
-	srv := &http.Server{Addr: ln.Addr().String(), Handler: r}
+	http2srv := &http2.Server{}
+	srv := &http.Server{Addr: ln.Addr().String(), Handler: h2c.NewHandler(r, http2srv)}
+
 	go func() {
 		if err := srv.Serve(ln); err != http.ErrServerClosed {
 			r.log.Error().Err(err).Msg("could not serve")
@@ -429,6 +435,12 @@ func (r *Run) StartProc(params *StartProcParams) (p *Proc, err error) {
 			if r.Out.Header.Get(TestHeaderDisablePlatformAuth) == "" {
 				addAuthKeyToRequest(r.Out, p.authKey)
 			}
+		},
+		Transport: &http2.Transport{
+			AllowHTTP: true,
+			DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
+				return net.Dial(network, addr)
+			},
 		},
 	}
 
