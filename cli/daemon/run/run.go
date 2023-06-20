@@ -12,6 +12,8 @@ import (
 	mathrand "math/rand"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,7 +24,6 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/hashicorp/yamux"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -32,7 +33,6 @@ import (
 	"encr.dev/cli/daemon/internal/sym"
 	"encr.dev/cli/daemon/run/infra"
 	"encr.dev/cli/daemon/secret"
-	"encr.dev/cli/internal/xos"
 	"encr.dev/internal/optracker"
 	"encr.dev/pkg/builder"
 	"encr.dev/pkg/builder/builderimpl"
@@ -378,11 +378,13 @@ type Proc struct {
 	log      zerolog.Logger
 	exit     chan struct{} // closed when the process has exited
 	cmd      *exec.Cmd
-	reqWr    *os.File
-	respRd   *os.File
 	buildDir string
-	Client   *yamux.Session
 	authKey  config.EncoreAuthKey
+
+	// httpPort is the allocated port on localhost for this process's HTTP server.
+	httpPort int
+	// proxy is the reverse proxy for forwarding requests to the process.
+	proxy *httputil.ReverseProxy
 
 	sym       *sym.Table
 	symErr    error
@@ -408,6 +410,28 @@ type StartProcParams struct {
 func (r *Run) StartProc(params *StartProcParams) (p *Proc, err error) {
 	pid := GenID()
 	authKey := genAuthKey()
+
+	// Allocate a port for the HTTP server.
+	port, err := allocatePort()
+	if err != nil {
+		return nil, err
+	}
+
+	dst := &url.URL{
+		Scheme: "http",
+		Host:   "127.0.0.1:" + strconv.Itoa(port),
+	}
+	proxy := &httputil.ReverseProxy{
+		Rewrite: func(r *httputil.ProxyRequest) {
+			r.SetURL(dst)
+
+			// Add the auth key unless the test header is set.
+			if r.Out.Header.Get(TestHeaderDisablePlatformAuth) == "" {
+				addAuthKeyToRequest(r.Out, p.authKey)
+			}
+		},
+	}
+
 	p = &Proc{
 		ID:          pid,
 		Run:         r,
@@ -419,6 +443,8 @@ func (r *Run) StartProc(params *StartProcParams) (p *Proc, err error) {
 		log:         r.log.With().Str("proc_id", pid).Str("build_dir", params.BuildDir).Logger(),
 		symParsed:   make(chan struct{}),
 		authKey:     authKey,
+		httpPort:    port,
+		proxy:       proxy,
 	}
 	go p.parseSymTable(params.BinPath)
 
@@ -442,6 +468,7 @@ func (r *Run) StartProc(params *StartProcParams) (p *Proc, err error) {
 	envs := append(params.Environ,
 		"ENCORE_RUNTIME_CONFIG="+base64.RawURLEncoding.EncodeToString(runtimeJSON),
 		"ENCORE_APP_SECRETS="+encodeSecretsEnv(params.Secrets),
+		"PORT="+strconv.Itoa(port),
 	)
 	for serviceName, cfgString := range params.ServiceConfigs {
 		envs = append(envs, "ENCORE_CFG_"+strings.ToUpper(serviceName)+"="+base64.RawURLEncoding.EncodeToString([]byte(cfgString)))
@@ -458,25 +485,6 @@ func (r *Run) StartProc(params *StartProcParams) (p *Proc, err error) {
 		cmd.Stderr = newLogWriter(r, l.RunStderr)
 	}
 
-	// Set up extra file descriptors for communicating requests/responses:
-	// - reqRd is for reading incoming requests (handed over procchild)
-	// - reqWr is for writing incoming requests
-	// - respRd is for reading responses
-	// - respWr is for writing responses (handed over to proc)
-	reqRd, reqWr, err1 := os.Pipe()
-	respRd, respWr, err2 := os.Pipe()
-	defer func() {
-		// Close all the files if we return an error.
-		if err != nil {
-			closeAll(reqRd, reqWr, respRd, respWr)
-		}
-	}()
-	if err := firstErr(err1, err2); err != nil {
-		return nil, err
-	} else if err := xos.ArrangeExtraFiles(cmd, reqRd, respWr); err != nil {
-		return nil, err
-	}
-
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
@@ -487,23 +495,6 @@ func (r *Run) StartProc(params *StartProcParams) (p *Proc, err error) {
 		}
 	}()
 
-	// Close the files we handed over to the child.
-	closeAll(reqRd, respWr)
-
-	rwc := &struct {
-		io.ReadCloser
-		io.Writer
-	}{
-		ReadCloser: io.NopCloser(respRd),
-		Writer:     reqWr,
-	}
-	p.Client, err = yamux.Client(rwc, yamux.DefaultConfig())
-	if err != nil {
-		return nil, fmt.Errorf("could not initialize connection: %v", err)
-	}
-
-	p.reqWr = reqWr
-	p.respRd = respRd
 	p.Pid = cmd.Process.Pid
 	p.Started = time.Now()
 
@@ -528,7 +519,7 @@ func (p *Proc) Done() <-chan struct{} {
 // Close closes the process and waits for it to shutdown.
 // It can safely be called multiple times.
 func (p *Proc) Close() {
-	p.reqWr.Close()
+	_ = p.cmd.Process.Signal(os.Interrupt)
 	timer := time.NewTimer(10 * time.Second)
 	defer timer.Stop()
 	select {
@@ -543,7 +534,6 @@ func (p *Proc) Close() {
 
 func (p *Proc) waitForExit() {
 	defer close(p.exit)
-	defer closeAll(p.reqWr, p.respRd)
 
 	if err := p.cmd.Wait(); err != nil && p.ctx.Err() == nil {
 		p.log.Error().Err(err).Msg("process exited with error")
@@ -713,4 +703,14 @@ func genAuthKey() config.EncoreAuthKey {
 		panic("cannot generate random data: " + err.Error())
 	}
 	return config.EncoreAuthKey{KeyID: kid, Data: b[:]}
+}
+
+// allocatePort allocates a random, unused TCP port.
+func allocatePort() (int, error) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return 0, err
+	}
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port, nil
 }
