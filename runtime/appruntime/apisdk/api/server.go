@@ -124,6 +124,7 @@ type Server struct {
 
 	grpcSrv      *grpc.Server
 	grpcServices []grpcServiceDesc
+	grpcHandlers map[string]GRPCHandler
 
 	callCtr uint64
 

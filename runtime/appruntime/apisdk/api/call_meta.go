@@ -213,7 +213,7 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 
 	// If we where tracing read the trace ID, span ID
 	if traceParent, found := req.ReadMeta(transport.TraceParentKey); found &&
-		// For now we only read the traceparent for interanl-to-internal calls, this is because CloudRun
+		// For now we only read the traceparent for internal-to-internal calls, this is because CloudRun
 		// is adding a traceparent header to all requests, which is causing our trace system to get confused
 		// and think that the initial request is a child of another already traced request
 		//
@@ -244,6 +244,12 @@ func (s *Server) MetaFromRequest(req transport.Transport) (meta CallMeta, err er
 		} else {
 			meta.CorrelationID = correlationID
 		}
+	}
+
+	// If we don't have a trace id, generate a new one.
+	if meta.TraceID.IsZero() {
+		meta.TraceID, _ = model.GenTraceID()
+		meta.ParentSpanID = model.SpanID{} // no parent span if we have no trace id
 	}
 
 	return meta, nil
