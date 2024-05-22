@@ -6,6 +6,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 use anyhow::Result;
+use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_common::Spanned;
 use swc_ecma_ast as ast;
@@ -147,6 +148,7 @@ pub struct Module {
 
 #[derive(Debug, Clone)]
 pub(super) struct ImportedName {
+    pub range: Range,
     pub import_path: String,
     pub kind: ImportKind,
 }
@@ -169,37 +171,45 @@ impl NSData {
         }
     }
 
-    fn add_top_level(&mut self, id: AstId, obj: Rc<Object>) -> Result<Rc<Object>> {
+    fn add_top_level(&mut self, id: AstId, obj: Rc<Object>) -> Rc<Object> {
         if let Some(other) = self.top_level.get(&id) {
-            log::error!("duplicate object {:?}: unhandled overload?", id);
-            return Ok(other.clone());
+            // Unhandled overload most likely, return the existing object for now.
+            HANDLER.with(|handler| {
+                handler.span_warn(
+                    obj.range.to_span(),
+                    &format!("`{}` declared twice (unhandled overload?)", id),
+                );
+            });
+
+            return other.clone();
         }
+
         self.top_level.insert(id, obj.clone());
-        Ok(obj)
+        obj
     }
 
-    fn add_import(&mut self, id: AstId, import: ImportedName) -> Result<()> {
+    fn add_import(&mut self, id: AstId, import: ImportedName) {
         if self.imports.contains_key(&id) {
-            anyhow::bail!("duplicate import: {}", id);
+            HANDLER.with(|handler| {
+                handler.span_err(
+                    import.range.to_span(),
+                    &format!("`{}` already imported", id),
+                );
+            });
+            return;
         }
-        self.imports.insert(
-            id,
-            ImportedName {
-                import_path: import.import_path.clone(),
-                kind: import.kind.clone(),
-            },
-        );
-        Ok(())
+
+        self.imports.insert(id, import);
     }
 }
 
-fn process_module_items(ctx: &Ctx, ns: &mut NSData, items: &[ast::ModuleItem]) -> Result<()> {
+fn process_module_items(ctx: &ResolveState, ns: &mut NSData, items: &[ast::ModuleItem]) {
     for it in items {
         match it {
             ast::ModuleItem::ModuleDecl(md) => match md {
-                ast::ModuleDecl::Import(import) => process_import(ns, import)?,
+                ast::ModuleDecl::Import(import) => process_import(ns, import),
                 ast::ModuleDecl::ExportDecl(decl) => {
-                    let objs = process_decl(ctx, ns, &decl.decl)?;
+                    let objs = process_decl(ctx, ns, &decl.decl);
                     for obj in objs {
                         if let Some(name) = &obj.name {
                             ns.named_exports.insert(name.clone(), obj);
@@ -246,16 +256,14 @@ fn process_module_items(ctx: &Ctx, ns: &mut NSData, items: &[ast::ModuleItem]) -
             },
 
             ast::ModuleItem::Stmt(stmt) => {
-                process_stmt(ctx, ns, stmt)?;
+                process_stmt(ctx, ns, stmt);
             }
         }
     }
-
-    Ok(())
 }
 
 /// Process an import declaration, adding imports to the module.
-fn process_import(ns: &mut NSData, import: &ast::ImportDecl) -> Result<()> {
+fn process_import(ns: &mut NSData, import: &ast::ImportDecl) {
     for specifier in &import.specifiers {
         match specifier {
             ast::ImportSpecifier::Named(named) => {
@@ -272,55 +280,57 @@ fn process_import(ns: &mut NSData, import: &ast::ImportDecl) -> Result<()> {
                 ns.add_import(
                     AstId::from(&named.local),
                     ImportedName {
+                        range: named.span.into(),
                         import_path: import.src.value.to_string(),
                         kind: ImportKind::Named(export_name.sym.as_ref().to_string()),
                     },
-                )?;
+                );
             }
             ast::ImportSpecifier::Default(default) => {
                 ns.add_import(
                     AstId::from(&default.local),
                     ImportedName {
+                        range: default.span.into(),
                         import_path: import.src.value.to_string(),
                         kind: ImportKind::Default,
                     },
-                )?;
+                );
             }
             ast::ImportSpecifier::Namespace(ns_import) => {
                 // import * as foo
                 ns.add_import(
                     AstId::from(&ns_import.local),
                     ImportedName {
+                        range: ns_import.span.into(),
                         import_path: import.src.value.to_string(),
                         kind: ImportKind::Namespace,
                     },
-                )?;
+                );
             }
         }
     }
-    Ok(())
 }
 
-fn process_stmt(ctx: &Ctx, ns: &mut NSData, stmt: &ast::Stmt) -> Result<Vec<Rc<Object>>> {
+fn process_stmt(ctx: &ResolveState, ns: &mut NSData, stmt: &ast::Stmt) -> Vec<Rc<Object>> {
     match stmt {
         ast::Stmt::Decl(decl) => process_decl(ctx, ns, decl),
         ast::Stmt::Block(block) => {
             let mut objs = vec![];
             for stmt in &block.stmts {
-                objs.extend(process_stmt(ctx, ns, stmt)?);
+                objs.extend(process_stmt(ctx, ns, stmt));
             }
-            Ok(objs)
+            objs
         }
 
         // NOTE(andre): I believe other statements can't really declare things,
         // since they're inside blocks.
-        _ => Ok(vec![]),
+        _ => vec![],
     }
 }
 
-fn process_decl(ctx: &Ctx, ns: &mut NSData, decl: &ast::Decl) -> Result<Vec<Rc<Object>>> {
+fn process_decl(ctx: &ResolveState, ns: &mut NSData, decl: &ast::Decl) -> Vec<Rc<Object>> {
     let range: Range = decl.span().into();
-    Ok(match decl {
+    match decl {
         ast::Decl::Class(d) => {
             let name = Some(d.ident.sym.to_string());
             let obj = ctx.new_obj(
@@ -330,7 +340,7 @@ fn process_decl(ctx: &Ctx, ns: &mut NSData, decl: &ast::Decl) -> Result<Vec<Rc<O
                     spec: d.class.clone(),
                 }),
             );
-            ns.add_top_level(AstId::from(&d.ident), obj.clone())?;
+            ns.add_top_level(AstId::from(&d.ident), obj.clone());
             vec![obj]
         }
 
@@ -343,7 +353,7 @@ fn process_decl(ctx: &Ctx, ns: &mut NSData, decl: &ast::Decl) -> Result<Vec<Rc<O
                     spec: d.function.clone(),
                 }),
             );
-            ns.add_top_level(AstId::from(&d.ident), obj.clone())?;
+            ns.add_top_level(AstId::from(&d.ident), obj.clone());
             vec![obj]
         }
 
@@ -361,7 +371,7 @@ fn process_decl(ctx: &Ctx, ns: &mut NSData, decl: &ast::Decl) -> Result<Vec<Rc<O
                             expr: var_decl.init.clone(),
                         }),
                     );
-                    ns.add_top_level(AstId::new(b.id, b.name.clone()), obj.clone())?;
+                    ns.add_top_level(AstId::new(b.id, b.name.clone()), obj.clone());
                     objs.push(obj);
                 }
             }
@@ -382,7 +392,7 @@ fn process_decl(ctx: &Ctx, ns: &mut NSData, decl: &ast::Decl) -> Result<Vec<Rc<O
                             expr: var_decl.init.clone(),
                         }),
                     );
-                    ns.add_top_level(AstId::new(b.id, b.name.clone()), obj.clone())?;
+                    ns.add_top_level(AstId::new(b.id, b.name.clone()), obj.clone());
                     objs.push(obj);
                 }
             }
@@ -398,13 +408,12 @@ fn process_decl(ctx: &Ctx, ns: &mut NSData, decl: &ast::Decl) -> Result<Vec<Rc<O
                     decl: TypeNameDecl::Interface(*d.clone()),
                 }),
             );
-            ns.add_top_level(AstId::from(&d.id), obj.clone())?;
+            ns.add_top_level(AstId::from(&d.id), obj.clone());
             vec![obj]
         }
 
         ast::Decl::TsTypeAlias(d) => {
             let name = d.id.sym.to_string();
-            log::info!("registering ts type alias {}", name);
             let obj = ctx.new_obj(
                 Some(name),
                 range,
@@ -412,7 +421,7 @@ fn process_decl(ctx: &Ctx, ns: &mut NSData, decl: &ast::Decl) -> Result<Vec<Rc<O
                     decl: TypeNameDecl::TypeAlias(*d.clone()),
                 }),
             );
-            ns.add_top_level(AstId::from(&d.id), obj.clone())?;
+            ns.add_top_level(AstId::from(&d.id), obj.clone());
             vec![obj]
         }
 
@@ -425,7 +434,7 @@ fn process_decl(ctx: &Ctx, ns: &mut NSData, decl: &ast::Decl) -> Result<Vec<Rc<O
                     members: d.members.clone(),
                 }),
             );
-            ns.add_top_level(AstId::from(&d.id), obj.clone())?;
+            ns.add_top_level(AstId::from(&d.id), obj.clone());
             vec![obj]
         }
 
@@ -437,12 +446,12 @@ fn process_decl(ctx: &Ctx, ns: &mut NSData, decl: &ast::Decl) -> Result<Vec<Rc<O
                         data: Box::new(NSData::new()),
                     };
                     if let Some(body) = &d.body {
-                        process_namespace_body(ctx, &mut ns2.data, body)?;
+                        process_namespace_body(ctx, &mut ns2.data, body);
                     }
 
                     let name = Some(id.sym.to_string());
                     let obj = ctx.new_obj(name, range, ObjectKind::Namespace(ns2));
-                    ns.add_top_level(AstId::from(id), obj.clone())?;
+                    ns.add_top_level(AstId::from(id), obj.clone());
                     vec![obj]
                 }
                 ast::TsModuleName::Str(_) => {
@@ -451,40 +460,39 @@ fn process_decl(ctx: &Ctx, ns: &mut NSData, decl: &ast::Decl) -> Result<Vec<Rc<O
                 }
             }
         }
-    })
+    }
 }
 
-fn process_namespace_body(ctx: &Ctx, ns: &mut NSData, body: &ast::TsNamespaceBody) -> Result<()> {
+fn process_namespace_body(ctx: &ResolveState, ns: &mut NSData, body: &ast::TsNamespaceBody) {
     match body {
         ast::TsNamespaceBody::TsModuleBlock(block) => {
-            process_module_items(ctx, ns, &block.body[..])?;
+            process_module_items(ctx, ns, &block.body[..]);
         }
         ast::TsNamespaceBody::TsNamespaceDecl(decl) => {
             let name = Some(decl.id.sym.to_string());
             let mut ns2 = Namespace {
                 data: Box::new(NSData::new()),
             };
-            process_namespace_body(ctx, &mut ns2.data, &decl.body)?;
+            process_namespace_body(ctx, &mut ns2.data, &decl.body);
 
             let range = decl.span.into();
             let obj = ctx.new_obj(name, range, ObjectKind::Namespace(ns2));
-            ns.add_top_level(AstId::from(&decl.id), obj)?;
+            ns.add_top_level(AstId::from(&decl.id), obj);
         }
     }
-    Ok(())
 }
 
 #[derive(Debug)]
-pub struct Ctx<'a> {
-    loader: Lrc<module_loader::ModuleLoader<'a>>,
+pub struct ResolveState {
+    loader: Lrc<module_loader::ModuleLoader>,
     modules: RefCell<HashMap<ModuleId, Rc<Module>>>,
     module_stack: RefCell<Vec<ModuleId>>,
     universe: OnceCell<Rc<Module>>,
     next_id: Cell<usize>,
 }
 
-impl<'a> Ctx<'a> {
-    pub(super) fn new(loader: Lrc<module_loader::ModuleLoader<'a>>) -> Self {
+impl ResolveState {
+    pub(super) fn new(loader: Lrc<module_loader::ModuleLoader>) -> Self {
         Self {
             loader,
             modules: RefCell::new(HashMap::new()),
@@ -500,7 +508,7 @@ impl<'a> Ctx<'a> {
         }
 
         let ast = self.loader.universe();
-        let module = self.get_or_init_module(ast).unwrap();
+        let module = self.get_or_init_module(ast);
         self.universe.set(module.clone()).unwrap();
         self.universe.get().unwrap().to_owned()
     }
@@ -529,8 +537,8 @@ impl<'a> Ctx<'a> {
         &self,
         module: Lrc<module_loader::Module>,
         expr: &ast::TsType,
-    ) -> Result<typ::Type> {
-        let module = self.get_or_init_module(module)?;
+    ) -> typ::Type {
+        let module = self.get_or_init_module(module);
         self.with_curr_module(module.base.id, || resolve_type(self, expr))
     }
 
@@ -538,14 +546,12 @@ impl<'a> Ctx<'a> {
         &self,
         module: Lrc<module_loader::Module>,
         expr: &ast::Expr,
-    ) -> Result<Option<Rc<Object>>> {
-        let module = self.get_or_init_module(module)?;
-        self.with_curr_module(module.base.id, || {
-            Ok(match resolve_expr_type(self, expr)? {
-                typ::Type::Named(named) => Some(named.obj.clone()),
-                typ::Type::Class(cls) => Some(cls.obj.clone()),
-                _ => None,
-            })
+    ) -> Option<Rc<Object>> {
+        let module = self.get_or_init_module(module);
+        self.with_curr_module(module.base.id, || match resolve_expr_type(self, expr) {
+            typ::Type::Named(named) => Some(named.obj.clone()),
+            typ::Type::Class(cls) => Some(cls.obj.clone()),
+            _ => None,
         })
     }
 
@@ -566,16 +572,16 @@ impl<'a> Ctx<'a> {
         }
     }
 
-    fn get_or_init_module(&self, module: Lrc<module_loader::Module>) -> Result<Rc<Module>> {
+    fn get_or_init_module(&self, module: Lrc<module_loader::Module>) -> Rc<Module> {
         let module_id = module.id;
         if let Some(m) = self.modules.borrow().get(&module_id) {
-            return Ok(m.clone());
+            return m.clone();
         }
 
         let mut data = Box::new(NSData::new());
         self.with_curr_module(module_id, || {
             process_module_items(self, &mut data, &module.ast.body[..])
-        })?;
+        });
 
         let new_module = Rc::new(Module { base: module, data });
 
@@ -583,12 +589,12 @@ impl<'a> Ctx<'a> {
             .borrow_mut()
             .insert(module_id, new_module.clone());
 
-        Ok(new_module)
+        new_module
     }
 
-    fn with_curr_module<Fn, Res>(&self, module_id: ModuleId, f: Fn) -> Result<Res>
+    fn with_curr_module<Fn, Res>(&self, module_id: ModuleId, f: Fn) -> Res
     where
-        Fn: FnOnce() -> Result<Res>,
+        Fn: FnOnce() -> Res,
     {
         self.module_stack.borrow_mut().push(module_id);
         let result = f();
@@ -615,13 +621,13 @@ impl<'a> Ctx<'a> {
             .ok_or_else(|| anyhow::anyhow!("internal error: module not found: {:?}", module_id))
     }
 
-    pub(super) fn resolve_ident(&self, ident: &ast::Ident) -> Result<Rc<Object>> {
-        let module = self.module()?;
+    pub(super) fn resolve_ident(&self, ident: &ast::Ident) -> Option<Rc<Object>> {
+        let module = self.module().ok()?;
 
         // Is it a top-level object in this module?
         let ast_id = AstId::from(ident);
         if let Some(obj) = module.data.top_level.get(&ast_id) {
-            return Ok(obj.clone());
+            return Some(obj.clone());
         }
 
         // Otherwise, is it an import?
@@ -634,57 +640,74 @@ impl<'a> Ctx<'a> {
             let universe = self.universe();
             let name = ident.sym.as_ref();
             if let Some(obj) = universe.data.named_exports.get(name) {
-                return Ok(obj.clone());
+                return Some(obj.clone());
             }
         }
 
         // Otherwise we don't know about this object.
-        anyhow::bail!("object not found: {:?}", ident.sym.as_ref());
+        None
     }
 
-    pub(super) fn resolve_import(&self, module: &Module, imp: &ImportedName) -> Result<Rc<Object>> {
-        let ast_module = self.loader.resolve_import(&module.base, &imp.import_path)?;
+    pub(super) fn resolve_import(&self, module: &Module, imp: &ImportedName) -> Option<Rc<Object>> {
+        let ast_module = self
+            .loader
+            .resolve_import(&module.base, &imp.import_path)
+            .inspect_err(|err| {
+                HANDLER.with(|handler| {
+                    handler.span_err(imp.range.to_span(), &format!("import not found: {}", err))
+                })
+            })
+            .ok()?;
 
         match &imp.kind {
             ImportKind::Named(name) => {
-                let imported = self.get_or_init_module(ast_module)?;
-                let obj = imported
-                    .data
-                    .named_exports
-                    .get(name)
-                    .ok_or_else(|| anyhow::anyhow!("object not found: {:?} (named import)", name))?
-                    .to_owned();
-                Ok(obj)
+                let imported = self.get_or_init_module(ast_module);
+                let obj = imported.data.named_exports.get(name).cloned();
+
+                if obj.is_none() {
+                    HANDLER.with(|handler| {
+                        handler
+                            .span_err(imp.range.to_span(), &format!("object not found: {}", name));
+                    });
+                }
+
+                obj
             }
             ImportKind::Default => {
-                let imported = self.get_or_init_module(ast_module)?;
-                let obj = imported
-                    .data
-                    .default_export
-                    .as_ref()
-                    .ok_or_else(|| {
-                        anyhow::anyhow!("object not found: {:?} (default import)", imp.import_path)
-                    })?
-                    .to_owned();
-                Ok(obj)
+                let imported = self.get_or_init_module(ast_module);
+                let obj = imported.data.default_export.as_ref().cloned();
+
+                if obj.is_none() {
+                    HANDLER.with(|handler| {
+                        handler.span_err(imp.range.to_span(), "default export not found");
+                    });
+                }
+
+                obj
             }
             ImportKind::Namespace => {
-                anyhow::bail!("unimplemented: namespace import");
+                HANDLER.with(|handler| {
+                    handler.span_err(imp.range.to_span(), "namespace imports not yet supported");
+                });
+                None
             }
         }
     }
 
-    pub fn obj_type(&self, obj: Rc<Object>) -> Result<typ::Type> {
+    pub fn obj_type(&self, obj: Rc<Object>) -> typ::Type {
         if matches!(&obj.kind, ObjectKind::Module(_)) {
             // Modules don't have a type.
-            return Ok(typ::Type::Basic(typ::Basic::Never));
+            return typ::Type::Basic(typ::Basic::Never);
         };
 
         match obj.state.borrow().deref() {
-            CheckState::Completed(typ) => return Ok(typ.clone()),
+            CheckState::Completed(typ) => return typ.clone(),
             CheckState::InProgress => {
                 // TODO support certain types of circular references.
-                anyhow::bail!("circular type reference");
+                HANDLER.with(|handler| {
+                    handler.span_err(obj.range.to_span(), "circular type reference");
+                });
+                return typ::Type::Basic(typ::Basic::Never);
             }
             CheckState::NotStarted => {
                 // Fall through below to do actual type-checking.
@@ -696,22 +719,22 @@ impl<'a> Ctx<'a> {
         // Mark this object as being checked.
         *obj.state.borrow_mut() = CheckState::InProgress;
 
-        let typ = self.with_curr_module(obj.module_id, || resolve_obj_type(self, obj.clone()))?;
+        let typ = self.with_curr_module(obj.module_id, || resolve_obj_type(self, obj.clone()));
         *obj.state.borrow_mut() = CheckState::Completed(typ.clone());
-        Ok(typ)
+        typ
     }
 }
 
-fn resolve_obj_type(ctx: &Ctx, obj: Rc<Object>) -> Result<typ::Type> {
-    Ok(match &obj.kind {
+fn resolve_obj_type(ctx: &ResolveState, obj: Rc<Object>) -> typ::Type {
+    match &obj.kind {
         ObjectKind::TypeName(tn) => match &tn.decl {
             TypeNameDecl::Interface(iface) => {
                 // TODO handle type params here
-                interface_decl(ctx, iface)?
+                interface_decl(ctx, iface)
             }
             TypeNameDecl::TypeAlias(ta) => {
                 // TODO handle type params here
-                resolve_type(ctx, &*ta.type_ann)?
+                resolve_type(ctx, &*ta.type_ann)
             }
         },
 
@@ -721,7 +744,7 @@ fn resolve_obj_type(ctx: &Ctx, obj: Rc<Object>) -> Result<typ::Type> {
             for m in &o.members {
                 let field_type = match &m.init {
                     None => typ::Type::Basic(typ::Basic::Number),
-                    Some(expr) => resolve_expr_type(ctx, &*expr)?,
+                    Some(expr) => resolve_expr_type(ctx, &*expr),
                 };
                 let name = match &m.id {
                     ast::TsEnumMemberId::Ident(id) => id.sym.as_ref().to_string(),
@@ -733,15 +756,20 @@ fn resolve_obj_type(ctx: &Ctx, obj: Rc<Object>) -> Result<typ::Type> {
                     optional: false,
                 });
             }
-            typ::Type::Interface(typ::Interface { fields })
+            typ::Type::Interface(typ::Interface {
+                fields,
+                // TODO
+                index: None,
+                call: None,
+            })
         }
 
         ObjectKind::Var(o) => {
             // Do we have a type annotation? If so, use that.
             if let Some(type_ann) = &o.type_ann {
-                resolve_type(ctx, &*type_ann.type_ann)?
+                resolve_type(ctx, &*type_ann.type_ann)
             } else if let Some(expr) = &o.expr {
-                resolve_expr_type(ctx, &*expr)?
+                resolve_expr_type(ctx, &*expr)
             } else {
                 typ::Type::Basic(typ::Basic::Never)
             }
@@ -750,16 +778,19 @@ fn resolve_obj_type(ctx: &Ctx, obj: Rc<Object>) -> Result<typ::Type> {
         ObjectKind::Using(o) => {
             // Do we have a type annotation? If so, use that.
             if let Some(type_ann) = &o.type_ann {
-                resolve_type(ctx, &*type_ann.type_ann)?
+                resolve_type(ctx, &*type_ann.type_ann)
             } else if let Some(expr) = &o.expr {
-                resolve_expr_type(ctx, &*expr)?
+                resolve_expr_type(ctx, &*expr)
             } else {
                 typ::Type::Basic(typ::Basic::Never)
             }
         }
 
         ObjectKind::Func(_o) => {
-            anyhow::bail!("TODO func type")
+            HANDLER.with(|handler| {
+                handler.span_err(obj.range.to_span(), "function types not yet supported");
+            });
+            typ::Type::Basic(typ::Basic::Never)
         }
 
         ObjectKind::Class(_o) => typ::Type::Class(typ::ClassType { obj: obj.clone() }),
@@ -769,15 +800,5 @@ fn resolve_obj_type(ctx: &Ctx, obj: Rc<Object>) -> Result<typ::Type> {
             // TODO include namespace objects in interface
             typ::Type::Basic(typ::Basic::Object)
         }
-    })
-}
-
-pub trait TypeResolver {
-    fn typ(&self, ctx: &Ctx) -> Result<typ::Type>;
-}
-
-impl TypeResolver for Rc<Object> {
-    fn typ(&self, ctx: &Ctx) -> Result<typ::Type> {
-        ctx.obj_type(self.clone())
     }
 }

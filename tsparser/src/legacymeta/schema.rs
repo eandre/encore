@@ -12,12 +12,12 @@ use crate::parser::parser::ParseContext;
 
 use crate::parser::types::custom::{resolve_custom_type_named, CustomType};
 use crate::parser::types::{
-    drop_empty_or_void, Basic, Interface, Literal, Named, ObjectId, Type, TypeResolver,
+    drop_empty_or_void, Basic, Interface, Literal, Named, ObjectId, Type,
 };
 use crate::parser::{FilePath, FileSet, Range};
 
 pub(super) struct SchemaBuilder<'a> {
-    pc: &'a ParseContext<'a>,
+    pc: &'a ParseContext,
     app_root: &'a Path,
 
     decls: RefCell<Vec<schema::Decl>>,
@@ -63,11 +63,10 @@ impl<'a> SchemaBuilder<'a> {
             Type::Named(tt) => schema::Type {
                 typ: Some(styp::Typ::Named(self.named(tt)?)),
             },
-            Type::Signature(_) => anyhow::bail!("signature types are not yet supported in schemas"),
             Type::Optional(_) => anyhow::bail!("optional types are not yet supported in schemas"),
             Type::This => anyhow::bail!("this types are not yet supported in schemas"),
-            Type::TypeArgument(_) => {
-                anyhow::bail!("type argument types are not yet supported in schemas")
+            Type::Generic(_) => {
+                anyhow::bail!("unresolved generic types are not supported in schemas")
             }
         })
     }
@@ -221,7 +220,7 @@ impl<'a> SchemaBuilder<'a> {
         self.obj_to_decl.borrow_mut().insert(obj.id, id);
 
         let ctx = self.pc.type_checker.ctx();
-        let obj_typ = obj.typ(ctx)?;
+        let obj_typ = ctx.obj_type(obj.clone());
         let schema_typ = self.typ(&obj_typ)?;
         self.decls.borrow_mut().get_mut(id as usize).unwrap().r#type = Some(schema_typ);
 
@@ -276,7 +275,7 @@ impl<'a> SchemaBuilder<'a> {
                 Some(self.typ(&typ)?)
             }
             Type::Named(named) => {
-                if let Ok(Type::Interface(mut iface)) = ctx.obj_type(named.obj.clone()) {
+                if let Type::Interface(mut iface) = ctx.obj_type(named.obj.clone()) {
                     strip_path_params(ctx, &mut iface);
                     let obj = named.obj;
                     let Some(underlying) = drop_empty_or_void(Type::Interface(iface)) else {
@@ -342,12 +341,12 @@ pub(super) fn loc_from_range(app_root: &Path, fset: &FileSet, range: Range) -> R
                 let file_name = buf
                     .file_name()
                     .map(|s| s.to_string_lossy().to_string())
-                    .ok_or(anyhow::anyhow!("missing file name"))?;
+                    .ok_or(anyhow::anyhow!("missing file name: {}", buf.display()))?;
                 let pkg_name = buf
                     .parent()
                     .and_then(|p| p.file_name())
                     .map(|s| s.to_string_lossy().to_string())
-                    .ok_or(anyhow::anyhow!("missing package name"))?;
+                    .ok_or(anyhow::anyhow!("missing package name for {}", buf.display()))?;
                 let pkg_path = format!("unknown/{}", pkg_name);
                 (pkg_path, pkg_name, file_name)
             }

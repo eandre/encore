@@ -6,7 +6,7 @@ use crate::parser::resources::apis::api::{Method, Methods};
 use crate::parser::respath::Path;
 use crate::parser::types::custom::{resolve_custom_type_named, CustomType};
 use crate::parser::types::{
-    drop_empty_or_void, unwrap_promise, Basic, Ctx, Interface, InterfaceField, Type,
+    drop_empty_or_void, unwrap_promise, Basic, ResolveState, Interface, InterfaceField, Type,
 };
 
 /// Describes how an API endpoint can be encoded on the wire.
@@ -163,7 +163,7 @@ impl ResponseEncoding {
 }
 
 pub fn describe_endpoint(
-    ctx: &Ctx,
+    ctx: &ResolveState,
     methods: Methods,
     path: Path,
     req: Option<Type>,
@@ -192,7 +192,7 @@ pub fn describe_endpoint(
 }
 
 fn describe_req(
-    ctx: &Ctx,
+    ctx: &ResolveState,
     methods: &Methods,
     path: &Path,
     req_schema: &Option<Type>,
@@ -244,7 +244,7 @@ fn describe_req(
 }
 
 fn describe_resp(
-    ctx: &Ctx,
+    ctx: &ResolveState,
     _methods: &Methods,
     resp_schema: &Option<Type>,
 ) -> Result<(ResponseEncoding, Option<FieldMap>)> {
@@ -265,7 +265,7 @@ fn describe_resp(
 }
 
 pub fn describe_auth_handler(
-    ctx: &Ctx,
+    ctx: &ResolveState,
     params: Type,
     response: Type,
 ) -> Result<AuthHandlerEncoding> {
@@ -320,8 +320,8 @@ pub struct Field {
     custom: Option<CustomType>,
 }
 
-fn iface_fields<'a>(ctx: &'a Ctx, typ: &'a Type) -> Result<FieldMap> {
-    fn to_fields(ctx: &Ctx, iface: &Interface) -> Result<FieldMap> {
+fn iface_fields<'a>(ctx: &'a ResolveState, typ: &'a Type) -> Result<FieldMap> {
+    fn to_fields(ctx: &ResolveState, iface: &Interface) -> Result<FieldMap> {
         let mut map = HashMap::new();
         for f in &iface.fields {
             map.insert(f.name.clone(), rewrite_custom_type_field(ctx, f)?);
@@ -334,7 +334,7 @@ fn iface_fields<'a>(ctx: &'a Ctx, typ: &'a Type) -> Result<FieldMap> {
         Type::Basic(Basic::Void) => Ok(HashMap::new()),
         Type::Interface(iface) => to_fields(ctx, iface),
         Type::Named(named) => {
-            let underlying = ctx.obj_type(named.obj.clone())?;
+            let underlying = named.underlying(ctx);
             iface_fields(ctx, &underlying)
         }
         _ => anyhow::bail!("expected named interface type, found {:?}", typ),
@@ -440,7 +440,7 @@ fn rewrite_path_types(req: &RequestEncoding, path: Path, raw: bool) -> Result<Pa
     Ok(Path { segments })
 }
 
-fn rewrite_custom_type_field(ctx: &Ctx, field: &InterfaceField) -> Result<Field> {
+fn rewrite_custom_type_field(ctx: &ResolveState, field: &InterfaceField) -> Result<Field> {
     let standard_field = Field {
         name: field.name.clone(),
         typ: field.typ.clone(),

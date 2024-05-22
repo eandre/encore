@@ -1,4 +1,4 @@
-use crate::parser::types::object;
+use crate::parser::types::{ResolveState, object};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -8,28 +8,31 @@ pub struct TypeArgId(usize);
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum Type {
+    /// strings, etc
     Basic(Basic),
-    // string
+    /// T[], Array<T>
     Array(Box<Type>),
-    // string[]
+    /// { foo: string }
     Interface(Interface),
-    // { foo: string }
+    /// a | b | c
     Union(Vec<Type>),
-    // a | b | c
+    /// [string, number]
     Tuple(Vec<Type>),
-    // [string, number]
+    /// "foo"
     Literal(Literal),
-    // "foo"
+    /// class Foo {}
     Class(ClassType),
-    // class Foo {}
+
+    /// A named type, with optional type arguments.
     Named(Named),
-    Signature(Signature),
-    // something callable
+
+    /// e.g. "string?" in tuples
     Optional(Box<Type>),
-    // e.g. "string?" in tuples
+
+    /// "this", see https://www.typescriptlang.org/docs/handbook/advanced-types.html#polymorphic-this-types
     This,
-    // "this", see https://www.typescriptlang.org/docs/handbook/advanced-types.html#polymorphic-this-types
-    TypeArgument(TypeArgId),
+
+    Generic(Generic),
 }
 
 impl Type {
@@ -49,44 +52,43 @@ impl Type {
             (Type::Literal(a), Type::Literal(b)) => a == b,
             (Type::Class(a), Type::Class(b)) => a.identical(b),
             (Type::Named(a), Type::Named(b)) => a.identical(b),
-            (Type::Signature(a), Type::Signature(b)) => a.identical(b),
             (Type::Optional(a), Type::Optional(b)) => a.identical(b),
             (Type::This, Type::This) => true,
-            (Type::TypeArgument(a), Type::TypeArgument(b)) => a == b,
+            (Type::Generic(a), Type::Generic(b)) => a.identical(b),
             _ => false,
         }
     }
 
     /// Returns a unified type that merges `self` and `other`, if possible.
-    /// If the types cannot be merged, returns `None`.
-    pub(super) fn unify(&self, other: &Type) -> Option<Type> {
+    /// If the types cannot be merged, returns `Err((self, other))`.
+    pub(super) fn unify(self, other: Type) -> Result<Type, (Type, Type)> {
         match (self, other) {
             // 'any' and any type unify to 'any'.
             (Type::Basic(Basic::Any), _) | (_, Type::Basic(Basic::Any)) => {
-                Some(Type::Basic(Basic::Any))
+                Ok(Type::Basic(Basic::Any))
             }
 
             // Type literals unify with their basic type
             (Type::Basic(basic), Type::Literal(lit)) | (Type::Literal(lit), Type::Basic(basic))
-                if *basic == lit.basic() =>
+                if basic == lit.basic() =>
             {
-                Some(Type::Basic(*basic))
+                Ok(Type::Basic(basic))
             }
 
             // TODO more rules?
 
             // Identical types unify.
-            _ if self.identical(other) => Some(self.clone()),
+            (this, other) if this.identical(&other) => Ok(this),
 
             // Otherwise no unification is possible.
-            _ => None,
+            (this, other) => Err((this, other)),
         }
     }
 
-    pub(super) fn unify_or_union(&self, other: &Type) -> Type {
+    pub(super) fn unify_or_union(self, other: Type) -> Type {
         match self.unify(other) {
-            Some(typ) => typ,
-            None => Type::Union(vec![self.clone(), other.clone()]),
+            Ok(typ) => typ,
+            Err((this, other)) => Type::Union(vec![this, other]),
         }
     }
 }
@@ -171,13 +173,22 @@ impl Hash for Literal {
 
 #[derive(Debug, Clone, Hash, Eq)]
 pub struct Interface {
+    /// Explicitly defined fields.
     pub fields: Vec<InterfaceField>,
-    // TODO: include things like [key: string]: blah as a separate concept from fields
+
+    /// Set for index signature types, like `[key: string]: number`.
+    pub index: Option<(Box<Type>, Box<Type>)>,
+
+    /// Callable signature, like `(a: number): string`.
+    /// The first tuple element is the args, and the second is the returns.
+    pub call: Option<(Vec<Type>, Vec<Type>)>,
 }
 
 impl Interface {
     pub fn identical(&self, other: &Interface) -> bool {
         if self.fields.len() != other.fields.len() {
+            return false;
+        } else if self.index.is_some() != other.index.is_some() {
             return false;
         }
 
@@ -195,6 +206,15 @@ impl Interface {
                     return false;
                 }
             } else {
+                return false;
+            }
+        }
+
+        // Compare index signatures.
+        if let (Some((self_key, self_value)), Some((other_key, other_value))) =
+            (&self.index, &other.index)
+        {
+            if !self_key.identical(other_key) || !self_value.identical(other_value) {
                 return false;
             }
         }
@@ -240,16 +260,38 @@ pub struct Named {
 }
 
 impl Named {
-    pub fn identical(&self, _other: &Named) -> bool {
-        todo!()
+    pub fn identical(&self, other: &Named) -> bool {
+        if self.obj.id != other.obj.id || self.type_arguments.len() != other.type_arguments.len() {
+            return false;
+        }
+
+        for (a, b) in self.type_arguments.iter().zip(&other.type_arguments) {
+            if !a.identical(b) {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    pub fn underlying(&self, ctx: &Ctx) -> Type {
+        // TODO include type arguments
+        ctx.obj_type(self.obj.clone())
     }
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct Signature {}
+pub enum Generic {
+    /// A reference to a generic type parameter.
+    TypeParam(TypeArgId),
 
-impl Signature {
-    pub fn identical(&self, _other: &Signature) -> bool {
-        todo!()
+    // TODO: include things like `T extends U` here
+}
+
+impl Generic {
+    pub fn identical(&self, other: &Generic) -> bool {
+        match (self, other) {
+            (Generic::TypeParam(a), Generic::TypeParam(b)) => *a == *b,
+        }
     }
 }
