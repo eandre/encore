@@ -42,6 +42,11 @@ impl TypeChecker {
 }
 
 pub(super) fn resolve_type(ctx: &ResolveState, typ: &ast::TsType) -> Type {
+    let cc = Ctx {
+        state: ctx,
+        type_params: None,
+    };
+
     match typ {
         ast::TsType::TsKeywordType(tt) => keyword(ctx, tt),
         ast::TsType::TsThisType(_) => Type::This,
@@ -61,7 +66,7 @@ pub(super) fn resolve_type(ctx: &ResolveState, typ: &ast::TsType) -> Type {
         // keyof, unique, readonly, etc.
         ast::TsType::TsTypeOperator(tt) => type_op(ctx, &tt),
 
-        ast::TsType::TsMappedType(tt) => mapped_type(ctx, &tt),
+        ast::TsType::TsMappedType(tt) => cc.mapped(&tt),
 
         ast::TsType::TsFnOrConstructorType(_)
         | ast::TsType::TsRestType(_) // same?
@@ -739,20 +744,25 @@ fn resolve_sel_type(ctx: &ResolveState, obj_type: Type, prop: &ast::MemberProp) 
 
 fn type_op(ctx: &ResolveState, tt: &ast::TsTypeOperator) -> Type {
     let underlying = resolve_type(ctx, &tt.type_ann);
+    let cc = Ctx {
+        state: ctx,
+        type_params: None,
+    };
     match tt.op {
         ast::TsTypeOperatorOp::ReadOnly => underlying,
         ast::TsTypeOperatorOp::Unique => underlying,
-        ast::TsTypeOperatorOp::KeyOf => keyof(ctx, underlying),
+        ast::TsTypeOperatorOp::KeyOf => cc.keyof(underlying),
     }
 }
 
-
-struct Ctx {
-    state: Lrc<ResolveState>,
+struct Ctx<'a> {
+    state: &'a ResolveState,
+    /// The type parameters in the current type resolution scope.
+    type_params: Option<Vec<ast::Id>>,
 }
 
-impl Ctx {
-    /// Resolves a mapped type.
+impl<'a> Ctx<'a> {
+    /// Resolves a mapped type, which represents another type being modified.
     /// https://www.typescriptlang.org/docs/handbook/2/mapped-types.html
     fn mapped(&self, tt: &ast::TsMappedType) -> Type {
         println!("got mapped: {:#?}", tt);
@@ -803,7 +813,7 @@ impl Ctx {
             }
 
             Type::Named(named) => {
-                let underlying = named.underlying(ctx);
+                let underlying = named.underlying(self.state);
                 self.keyof(underlying)
             }
 
@@ -812,9 +822,9 @@ impl Ctx {
                 Type::Basic(Basic::Never)
             }
 
-            Type::Optional(typ) => crate::parser::types::type_resolve::keyof(ctx, *typ),
+            Type::Optional(typ) => self.keyof(*typ),
             Type::Union(types) => {
-                let res: Vec<_> = types.into_iter().map(|t| crate::parser::types::type_resolve::keyof(ctx, t)).collect();
+                let res: Vec<_> = types.into_iter().map(|t| self.keyof(t)).collect();
                 Type::Union(res)
             }
 
@@ -829,6 +839,4 @@ impl Ctx {
             }
         }
     }
-
-    fn
 }

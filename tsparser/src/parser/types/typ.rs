@@ -274,7 +274,7 @@ impl Named {
         true
     }
 
-    pub fn underlying(&self, ctx: &Ctx) -> Type {
+    pub fn underlying(&self, ctx: &ResolveState) -> Type {
         // TODO include type arguments
         ctx.obj_type(self.obj.clone())
     }
