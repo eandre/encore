@@ -49,8 +49,8 @@ pub const AUTHHANDLER_PARSER: ResourceParser = ResourceParser {
 
         for r in iter_references::<AuthHandlerLiteral>(&module, &names) {
             let r = r?;
-            let request = pass.type_checker.resolve(module.clone(), &r.request);
-            let response = pass.type_checker.resolve(module.clone(), &r.response);
+            let request = pass.type_checker.resolve_type(module.clone(), &r.request);
+            let response = pass.type_checker.resolve_type(module.clone(), &r.response);
 
             let object = pass
                 .type_checker

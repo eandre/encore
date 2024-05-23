@@ -1,12 +1,15 @@
+use std::cell::OnceCell;
 use crate::parser::types::{ResolveState, object};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use swc_ecma_loader::resolve::Resolve;
+use crate::parser::types::type_resolve::Ctx;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct TypeArgId(usize);
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash)]
 pub enum Type {
     /// strings, etc
     Basic(Basic),
@@ -171,7 +174,7 @@ impl Hash for Literal {
     }
 }
 
-#[derive(Debug, Clone, Hash, Eq)]
+#[derive(Debug, Clone, Hash)]
 pub struct Interface {
     /// Explicitly defined fields.
     pub fields: Vec<InterfaceField>,
@@ -229,7 +232,7 @@ impl PartialEq for Interface {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash)]
 pub struct InterfaceField {
     pub name: String,
     pub typ: Type,
@@ -253,13 +256,30 @@ impl ClassType {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Named {
     pub obj: Rc<object::Object>,
     pub type_arguments: Vec<Type>,
+
+    underlying: OnceCell<Box<Type>>,
+}
+
+impl Hash for Named {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.obj.id.hash(state);
+        self.type_arguments.hash(state);
+    }
 }
 
 impl Named {
+    pub fn new(obj: Rc<object::Object>, type_arguments: Vec<Type>) -> Self {
+        Self {
+            obj,
+            type_arguments,
+            underlying: OnceCell::new(),
+        }
+    }
+
     pub fn identical(&self, other: &Named) -> bool {
         if self.obj.id != other.obj.id || self.type_arguments.len() != other.type_arguments.len() {
             return false;
@@ -274,9 +294,16 @@ impl Named {
         true
     }
 
-    pub fn underlying(&self, ctx: &ResolveState) -> Type {
-        // TODO include type arguments
-        ctx.obj_type(self.obj.clone())
+    pub fn underlying(&self, rs: &ResolveState) -> &Type {
+        self.underlying.get_or_init(|| {
+            // TODO include type arguments
+            let ctx = Ctx {
+                state: rs,
+                module: self.obj.module_id,
+                type_params: &[], // is this correct?
+            };
+            Box::new(ctx.obj_type(self.obj.clone()))
+        })
     }
 }
 

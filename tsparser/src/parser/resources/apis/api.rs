@@ -176,11 +176,11 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
                 EndpointKind::Typed { request, response } => {
                     let request = match request {
                         None => None,
-                        Some(t) => Some(pass.type_checker.resolve(module.clone(), &t)),
+                        Some(t) => Some(pass.type_checker.resolve_type(module.clone(), &t)),
                     };
                     let response = match response {
                         None => None,
-                        Some(t) => Some(pass.type_checker.resolve(module.clone(), &t)),
+                        Some(t) => Some(pass.type_checker.resolve_type(module.clone(), &t)),
                     };
                     (request, response)
                 }

@@ -219,8 +219,7 @@ impl<'a> SchemaBuilder<'a> {
         self.decls.borrow_mut().push(decl);
         self.obj_to_decl.borrow_mut().insert(obj.id, id);
 
-        let ctx = self.pc.type_checker.ctx();
-        let obj_typ = ctx.obj_type(obj.clone());
+        let obj_typ = self.pc.type_checker.resolve_obj_type(obj.clone());
         let schema_typ = self.typ(&obj_typ)?;
         self.decls.borrow_mut().get_mut(id as usize).unwrap().r#type = Some(schema_typ);
 
@@ -265,18 +264,19 @@ impl<'a> SchemaBuilder<'a> {
     pub fn transform_request(&self, typ: Option<Type>) -> Result<Option<schema::Type>> {
         let Some(typ) = typ else { return Ok(None) };
 
-        let ctx = self.pc.type_checker.ctx();
+        let rs = self.pc.type_checker.ctx();
         Ok(match typ {
             Type::Interface(mut interface) => {
-                strip_path_params(ctx, &mut interface);
+                strip_path_params(rs, &mut interface);
                 let Some(typ) = drop_empty_or_void(Type::Interface(interface)) else {
                     return Ok(None);
                 };
                 Some(self.typ(&typ)?)
             }
             Type::Named(named) => {
-                if let Type::Interface(mut iface) = ctx.obj_type(named.obj.clone()) {
-                    strip_path_params(ctx, &mut iface);
+                let underlying = named.underlying(rs).clone();
+                if let Type::Interface(mut iface) = underlying {
+                    strip_path_params(rs, &mut iface);
                     let obj = named.obj;
                     let Some(underlying) = drop_empty_or_void(Type::Interface(iface)) else {
                         return Ok(None);

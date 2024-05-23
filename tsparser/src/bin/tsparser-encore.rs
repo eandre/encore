@@ -2,12 +2,14 @@ use std::collections::HashMap;
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
 use prost::Message;
 use serde::{Deserialize, Serialize};
-use swc_common::errors::{Handler, HANDLER};
-use swc_common::{Globals, SourceMap, GLOBALS};
+use swc_common::errors::{Emitter, EmitterWriter, Handler, HANDLER};
+use swc_common::{Globals, SourceMap, GLOBALS, SourceMapper};
+use swc_common::sync::Lrc;
 
 use encore_tsparser::builder;
 use encore_tsparser::builder::Builder;
@@ -24,11 +26,16 @@ fn main() -> Result<()> {
     let globals = Globals::new();
 
     let cm: Rc<SourceMap> = Default::default();
-    let errs = Rc::new(Handler::with_tty_emitter(
-        swc_common::errors::ColorConfig::Auto,
+    let errors: Rc<Mutex<Vec<String>>> = Default::default();
+    let emitter = ErrorList {
+        cm: cm.clone(),
+        errors: errors.clone(),
+    };
+
+    let errs = Rc::new(Handler::with_emitter(
         true,
         false,
-        Some(cm.clone()),
+        Box::new(emitter),
     ));
 
     GLOBALS.set(&globals, || -> Result<()> {
@@ -110,7 +117,15 @@ fn main() -> Result<()> {
                             }
                             Err(err) => {
                                 log::error!("failed to parse: {:?}", err);
-                                write_result(Err(err))?
+                                // Get any errors from the emitter.
+                                let errs = errors.lock().unwrap();
+                                let mut err_msg = String::new();
+                                for err in errs.iter() {
+                                    err_msg.push_str(err);
+                                    err_msg.push_str("\n");
+                                }
+                                err_msg.push_str(&format!("{:?}", err));
+                                write_result(Err(anyhow::anyhow!(err_msg)))?
                             }
                         }
                     }
@@ -307,3 +322,40 @@ struct TestInput {
 
 #[derive(Deserialize, Debug)]
 struct GenUserFacingInput {}
+
+struct ErrorList {
+    cm: Rc<dyn SourceMapper>,
+    errors: Rc<Mutex<Vec<String>>>,
+}
+
+impl Emitter for ErrorList {
+    fn emit(&mut self, db: &swc_common::errors::DiagnosticBuilder<'_>) {
+        let buf: AtomicBuf = Default::default();
+
+        let mut w = EmitterWriter::new(Box::new(buf.clone()), Some(self.cm.clone()), false, false);
+        w.emit(db);
+
+        let s = buf.to_string();
+        self.errors.lock().unwrap().push(s);
+    }
+}
+
+#[derive(Default, Clone)]
+struct AtomicBuf(Arc<Mutex<Vec<u8>>>);
+
+impl AtomicBuf {
+    pub fn to_string(&self) -> String {
+        String::from_utf8_lossy(&self.0.lock().unwrap()).to_string()
+    }
+}
+
+impl Write for AtomicBuf {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.0.lock().unwrap().extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}

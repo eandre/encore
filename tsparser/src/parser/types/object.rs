@@ -15,7 +15,6 @@ use crate::parser::module_loader::ModuleId;
 use crate::parser::types::ast_id::AstId;
 use crate::parser::types::binding::bindings;
 use crate::parser::types::typ;
-use crate::parser::types::type_resolve::{interface_decl, resolve_expr_type, resolve_type};
 use crate::parser::{module_loader, Range};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -78,7 +77,7 @@ pub(super) enum CheckState {
 
 #[derive(Debug)]
 pub struct TypeName {
-    decl: TypeNameDecl,
+    pub decl: TypeNameDecl,
 }
 
 #[derive(Debug)]
@@ -95,30 +94,30 @@ pub struct Class {
 
 #[derive(Debug)]
 pub struct Enum {
-    members: Vec<ast::TsEnumMember>,
+    pub members: Vec<ast::TsEnumMember>,
 }
 
 #[derive(Debug)]
 pub struct Func {
     #[allow(dead_code)]
-    spec: Box<ast::Function>,
+    pub spec: Box<ast::Function>,
 }
 
 #[derive(Debug)]
 pub struct Namespace {
-    data: Box<NSData>,
+    pub data: Box<NSData>,
 }
 
 #[derive(Debug)]
 pub struct Var {
-    type_ann: Option<ast::TsTypeAnn>,
-    expr: Option<Box<ast::Expr>>,
+    pub type_ann: Option<ast::TsTypeAnn>,
+    pub expr: Option<Box<ast::Expr>>,
 }
 
 #[derive(Debug)]
 pub struct Using {
-    type_ann: Option<ast::TsTypeAnn>,
-    expr: Option<Box<ast::Expr>>,
+    pub type_ann: Option<ast::TsTypeAnn>,
+    pub expr: Option<Box<ast::Expr>>,
 }
 
 #[derive(Debug)]
@@ -533,28 +532,6 @@ impl ResolveState {
         })
     }
 
-    pub(super) fn resolve(
-        &self,
-        module: Lrc<module_loader::Module>,
-        expr: &ast::TsType,
-    ) -> typ::Type {
-        let module = self.get_or_init_module(module);
-        self.with_curr_module(module.base.id, || resolve_type(self, expr))
-    }
-
-    pub(super) fn resolve_obj(
-        &self,
-        module: Lrc<module_loader::Module>,
-        expr: &ast::Expr,
-    ) -> Option<Rc<Object>> {
-        let module = self.get_or_init_module(module);
-        self.with_curr_module(module.base.id, || match resolve_expr_type(self, expr) {
-            typ::Type::Named(named) => Some(named.obj.clone()),
-            typ::Type::Class(cls) => Some(cls.obj.clone()),
-            _ => None,
-        })
-    }
-
     pub(super) fn lookup_module(&self, id: ModuleId) -> Option<Rc<Module>> {
         self.modules.borrow().get(&id).map(|m| m.clone())
     }
@@ -572,7 +549,7 @@ impl ResolveState {
         }
     }
 
-    fn get_or_init_module(&self, module: Lrc<module_loader::Module>) -> Rc<Module> {
+    pub fn get_or_init_module(&self, module: Lrc<module_loader::Module>) -> Rc<Module> {
         let module_id = module.id;
         if let Some(m) = self.modules.borrow().get(&module_id) {
             return m.clone();
@@ -621,8 +598,8 @@ impl ResolveState {
             .ok_or_else(|| anyhow::anyhow!("internal error: module not found: {:?}", module_id))
     }
 
-    pub(super) fn resolve_ident(&self, ident: &ast::Ident) -> Option<Rc<Object>> {
-        let module = self.module().ok()?;
+    pub(super) fn resolve_ident(&self, module_id: ModuleId, ident: &ast::Ident) -> Option<Rc<Object>> {
+        let module = self.lookup_module(module_id)?;
 
         // Is it a top-level object in this module?
         let ast_id = AstId::from(ident);
@@ -691,114 +668,6 @@ impl ResolveState {
                 });
                 None
             }
-        }
-    }
-
-    pub fn obj_type(&self, obj: Rc<Object>) -> typ::Type {
-        if matches!(&obj.kind, ObjectKind::Module(_)) {
-            // Modules don't have a type.
-            return typ::Type::Basic(typ::Basic::Never);
-        };
-
-        match obj.state.borrow().deref() {
-            CheckState::Completed(typ) => return typ.clone(),
-            CheckState::InProgress => {
-                // TODO support certain types of circular references.
-                HANDLER.with(|handler| {
-                    handler.span_err(obj.range.to_span(), "circular type reference");
-                });
-                return typ::Type::Basic(typ::Basic::Never);
-            }
-            CheckState::NotStarted => {
-                // Fall through below to do actual type-checking.
-                // Needs to be handled separately to avoid borrowing issues.
-            }
-        }
-        // Post-condition: state is NotStarted.
-
-        // Mark this object as being checked.
-        *obj.state.borrow_mut() = CheckState::InProgress;
-
-        let typ = self.with_curr_module(obj.module_id, || resolve_obj_type(self, obj.clone()));
-        *obj.state.borrow_mut() = CheckState::Completed(typ.clone());
-        typ
-    }
-}
-
-fn resolve_obj_type(ctx: &ResolveState, obj: Rc<Object>) -> typ::Type {
-    match &obj.kind {
-        ObjectKind::TypeName(tn) => match &tn.decl {
-            TypeNameDecl::Interface(iface) => {
-                // TODO handle type params here
-                interface_decl(ctx, iface)
-            }
-            TypeNameDecl::TypeAlias(ta) => {
-                // TODO handle type params here
-                resolve_type(ctx, &*ta.type_ann)
-            }
-        },
-
-        ObjectKind::Enum(o) => {
-            // The type of an enum is interface.
-            let mut fields = Vec::with_capacity(o.members.len());
-            for m in &o.members {
-                let field_type = match &m.init {
-                    None => typ::Type::Basic(typ::Basic::Number),
-                    Some(expr) => resolve_expr_type(ctx, &*expr),
-                };
-                let name = match &m.id {
-                    ast::TsEnumMemberId::Ident(id) => id.sym.as_ref().to_string(),
-                    ast::TsEnumMemberId::Str(str) => str.value.as_ref().to_string(),
-                };
-                fields.push(typ::InterfaceField {
-                    name,
-                    typ: field_type,
-                    optional: false,
-                });
-            }
-            typ::Type::Interface(typ::Interface {
-                fields,
-                // TODO
-                index: None,
-                call: None,
-            })
-        }
-
-        ObjectKind::Var(o) => {
-            // Do we have a type annotation? If so, use that.
-            if let Some(type_ann) = &o.type_ann {
-                resolve_type(ctx, &*type_ann.type_ann)
-            } else if let Some(expr) = &o.expr {
-                resolve_expr_type(ctx, &*expr)
-            } else {
-                typ::Type::Basic(typ::Basic::Never)
-            }
-        }
-
-        ObjectKind::Using(o) => {
-            // Do we have a type annotation? If so, use that.
-            if let Some(type_ann) = &o.type_ann {
-                resolve_type(ctx, &*type_ann.type_ann)
-            } else if let Some(expr) = &o.expr {
-                resolve_expr_type(ctx, &*expr)
-            } else {
-                typ::Type::Basic(typ::Basic::Never)
-            }
-        }
-
-        ObjectKind::Func(_o) => {
-            HANDLER.with(|handler| {
-                handler.span_err(obj.range.to_span(), "function types not yet supported");
-            });
-            typ::Type::Basic(typ::Basic::Never)
-        }
-
-        ObjectKind::Class(_o) => typ::Type::Class(typ::ClassType { obj: obj.clone() }),
-
-        ObjectKind::Module(_o) => typ::Type::Basic(typ::Basic::Never),
-        ObjectKind::Namespace(_o) => {
-            // TODO include namespace objects in interface
-            typ::Type::Basic(typ::Basic::Object)
         }
     }
 }
