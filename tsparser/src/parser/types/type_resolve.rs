@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::cell::OnceCell;
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -26,7 +27,7 @@ impl TypeChecker {
         }
     }
 
-    pub fn ctx(&self) -> &ResolveState {
+    pub fn state(&self) -> &ResolveState {
         &self.ctx
     }
 
@@ -36,7 +37,16 @@ impl TypeChecker {
         _ = self.ctx.get_or_init_module(module);
 
         let ctx = Ctx::new(&self.ctx, module_id);
-        ctx.typ(expr)
+        let typ = ctx.typ(expr);
+        match ctx.concrete(&typ) {
+            Cow::Owned(typ) => typ,
+            Cow::Borrowed(_) => typ,
+        }
+    }
+
+    pub fn underlying(&self, module_id: ModuleId, typ: &Type) -> Type {
+        let ctx = Ctx::new(&self.ctx, module_id);
+        ctx.underlying(&typ).into_owned()
     }
 
     pub fn resolve_obj(
@@ -52,7 +62,7 @@ impl TypeChecker {
         ctx.resolve_obj(expr)
     }
 
-    pub fn resolve_obj_type(&self, obj: Rc<Object>) -> Type {
+    pub fn resolve_obj_type(&self, obj: &Object) -> Type {
         let ctx = Ctx::new(&self.ctx, obj.module_id);
         ctx.obj_type(obj)
     }
@@ -88,6 +98,10 @@ impl<'a> Ctx<'a> {
             mapped_key_id: None,
             mapped_key_type: None,
         }
+    }
+
+    fn with_module(self, module: ModuleId) -> Self {
+        Self { module, ..self }
     }
 
     fn with_type_params(self, type_params: &'a [&'a ast::TsTypeParam]) -> Self {
@@ -194,7 +208,7 @@ impl<'a> Ctx<'a> {
         // Next, introduce a nested ctx that introduces the "K" mapped type parameter.
         let nested = self
             .clone()
-            .with_type_args(&[])
+            // .with_type_args(&[])
             .with_mapped_key_id(Some(tt.type_param.name.to_id()));
 
         // Next, parse the value type.
@@ -210,14 +224,24 @@ impl<'a> Ctx<'a> {
     fn indexed_access(&self, tt: &ast::TsIndexedAccessType) -> Type {
         let obj = self.typ(&tt.obj_type);
         let idx = self.typ(&tt.index_type);
-        self.type_index(tt.span, obj, idx)
+        self.type_index(tt.span, &obj, &idx)
     }
 
-    fn type_index(&self, span: Span, obj: Type, idx: Type) -> Type {
-        // If either obj or index is a generic type, we need to store it as a Generic::Index.
+    fn type_index(&self, span: Span, obj: &Type, idx: &Type) -> Type {
         match (obj, idx) {
-            pair @ ((Type::Generic(_), _) | (_, Type::Generic(_))) => {
-                Type::Generic(Generic::Index((Box::new(pair.0), Box::new(pair.1))))
+            // If either obj or index is a generic type, we need to store it as a Generic::Index.
+            pair @ ((Type::Generic(_), _) | (_, Type::Generic(_))) => Type::Generic(
+                Generic::Index((Box::new(pair.0.clone()), Box::new(pair.1.clone()))),
+            ),
+
+            (Type::Named(named), idx) => {
+                let underlying = named.underlying(self.state);
+                self.type_index(span, underlying, idx)
+            }
+
+            (obj, Type::Named(idx)) => {
+                let underlying = idx.underlying(self.state);
+                self.type_index(span, obj, underlying)
             }
 
             // Otherwise, look up the concrete result.
@@ -225,12 +249,22 @@ impl<'a> Ctx<'a> {
                 Type::Literal(Literal::String(s)) => iface
                     .fields
                     .iter()
-                    .find(|f| f.name == s)
-                    .map_or(Type::Basic(Basic::Never), |f| f.typ.clone()),
+                    .find(|f| f.name.as_str() == s)
+                    .map_or(Type::Basic(Basic::Never), |f| {
+                        let typ = f.typ.clone();
+                        // If the field is optional, wrap the type in Optional.
+                        if f.optional {
+                            Type::Optional(Box::new(typ))
+                        } else {
+                            typ
+                        }
+                    }),
+
                 Type::Basic(Basic::String | Basic::Number) => iface
                     .index
                     .as_ref()
                     .map_or(Type::Basic(Basic::Never), |(_, value)| *value.clone()),
+
                 _ => {
                     HANDLER.with(|handler| {
                         handler.span_err(span, "unsupported index access type operation")
@@ -239,9 +273,15 @@ impl<'a> Ctx<'a> {
                 }
             },
 
-            _ => {
+            (obj, idx) => {
                 HANDLER.with(|handler| {
-                    handler.span_err(span, "unsupported indexed access type operation")
+                    handler.span_err(
+                        span,
+                        &format!(
+                            "unsupported indexed access type operation: obj {:#?} index {:#?}",
+                            obj, idx
+                        ),
+                    )
                 });
                 Type::Basic(Basic::Never)
             }
@@ -287,9 +327,9 @@ impl<'a> Ctx<'a> {
                 Type::Union(keys)
             }
 
-            Type::Named(named) => {
-                let underlying = named.underlying(self.state);
-                self.keyof(underlying)
+            Type::Named(_) => {
+                let underlying = self.underlying(typ);
+                self.keyof(&underlying)
             }
 
             Type::Class(_) => {
@@ -472,17 +512,18 @@ impl<'a> Ctx<'a> {
         };
 
         // Is this a reference to a type parameter?
-        if let Some(type_param) = self
+        let type_param = self
             .type_params
             .iter()
             .enumerate()
-            .find(|tp| tp.1.name.sym == ident.sym)
-        {
-            // Do we have a type argument for this type parameter?
-            return if let Some(type_arg) = self.type_args.get(type_param.0) {
+            .find(|tp| tp.1.name.to_id() == ident.to_id())
+            .map(|tp| (tp.0, *tp.1));
+        if let Some((idx, type_param)) = type_param {
+            return if let Some(type_arg) = self.type_args.get(idx) {
                 type_arg.clone()
             } else {
-                Type::Generic(Generic::TypeParam(type_param.0))
+                let constraint = type_param.constraint.as_ref().map(|c| self.btyp(c));
+                Type::Generic(Generic::TypeParam(TypeParam { idx, constraint }))
             };
         }
 
@@ -517,11 +558,11 @@ impl<'a> Ctx<'a> {
 
                 // Don't reference named types in the universe,
                 // otherwise we try to find them on disk.
-                if self.state.is_universe(named.obj.module_id) {
-                    named.underlying(self.state).clone()
-                } else {
-                    Type::Named(named)
-                }
+                // if self.state.is_universe(named.obj.module_id) {
+                // named.underlying(self.state).clone()
+                // } else {
+                Type::Named(named)
+                // }
             }
             ObjectKind::Enum(_) | ObjectKind::Class(_) => {
                 Type::Named(Named::new(obj, type_arguments))
@@ -574,7 +615,41 @@ impl<'a> Ctx<'a> {
         let check = self.typ(&tt.check_type);
         let extends = self.typ(&tt.extends_type);
 
-        match check.assignable(&extends) {
+        // Do we have a union type in `check`, and the AST is a naked type parameter?
+        // If so, we need to treat it as a distributive conditional type.
+        // See: https://www.typescriptlang.org/docs/handbook/advanced-types.html#distributive-conditional-types
+        if let Type::Union(types) = &check {
+            if let ast::TsType::TsTypeRef(ref check) = tt.check_type.as_ref() {
+                if check.type_params.is_none() {
+                    if let Some(ident) = check.type_name.as_ident() {
+                        if self
+                            .type_params
+                            .iter()
+                            .find(|tp| tp.name.to_id() == ident.to_id())
+                            .is_some()
+                        {
+                            // Apply the conditional to each type in the union.
+                            let result = types
+                                .iter()
+                                .map(|t| match t.assignable(self.state, &extends) {
+                                    Some(true) => self.typ(&tt.true_type),
+                                    Some(false) => self.typ(&tt.false_type),
+                                    None => Type::Generic(Generic::Conditional(Conditional {
+                                        check_type: Box::new(t.clone()),
+                                        extends_type: Box::new(extends.clone()),
+                                        true_type: self.btyp(&tt.true_type),
+                                        false_type: self.btyp(&tt.false_type),
+                                    })),
+                                })
+                                .collect::<Vec<_>>();
+                            return unify_union(result);
+                        }
+                    }
+                }
+            }
+        }
+
+        match check.assignable(self.state, &extends) {
             Some(true) => self.typ(&tt.true_type),
             Some(false) => self.typ(&tt.false_type),
             None => Type::Generic(Generic::Conditional(Conditional {
@@ -700,11 +775,11 @@ impl<'a> Ctx<'a> {
 
                 // Don't reference named types in the universe,
                 // otherwise we try to find them on disk.
-                if self.state.is_universe(named.obj.module_id) {
-                    named.underlying(self.state).clone()
-                } else {
-                    Type::Named(named)
-                }
+                // if self.state.is_universe(named.obj.module_id) {
+                //     named.underlying(self.state).clone()
+                // } else {
+                Type::Named(named)
+                // }
             }
             ast::Expr::PrivateName(expr) => {
                 let Some(obj) = self.ident_obj(&expr.id) else {
@@ -887,7 +962,7 @@ impl<'a> Ctx<'a> {
                                 return Type::Basic(Basic::Never);
                             };
 
-                            let obj_type = self.obj_type(obj);
+                            let obj_type = self.obj_type(&obj);
                             (Cow::Borrowed(id.sym.as_ref()), obj_type)
                         }
                         ast::Prop::KeyValue(kv) => {
@@ -997,9 +1072,9 @@ impl<'a> Ctx<'a> {
                     Type::Basic(Basic::Never)
                 }
             }
-            Type::Named(named) => {
-                let underlying = named.underlying(self.state);
-                self.resolve_member_prop(underlying, prop)
+            Type::Named(_) => {
+                let underlying = self.underlying(obj_type);
+                self.resolve_member_prop(&underlying, prop)
             }
         }
     }
@@ -1028,7 +1103,7 @@ impl<'a> Ctx<'a> {
 }
 
 impl<'a> Ctx<'a> {
-    pub fn obj_type(&self, obj: Rc<Object>) -> Type {
+    pub fn obj_type(&self, obj: &Object) -> Type {
         if matches!(&obj.kind, ObjectKind::Module(_)) {
             // Modules don't have a type.
             return Type::Basic(Basic::Never);
@@ -1057,15 +1132,15 @@ impl<'a> Ctx<'a> {
 
         let typ = {
             // Create a nested ctx that uses the object's module.
-            let ctx = Ctx::new(self.state, obj.module_id).with_type_params(&type_params);
-            ctx.resolve_obj_type(obj.clone())
+            let ctx = Ctx::new(self.state, self.module).with_type_params(&type_params);
+            ctx.resolve_obj_type(obj)
         };
 
         *obj.state.borrow_mut() = CheckState::Completed(typ.clone());
         typ
     }
 
-    fn resolve_obj_type(&self, obj: Rc<Object>) -> Type {
+    fn resolve_obj_type(&self, obj: &Object) -> Type {
         match &obj.kind {
             ObjectKind::TypeName(tn) => match &tn.decl {
                 TypeNameDecl::Interface(iface) => {
@@ -1138,7 +1213,7 @@ impl<'a> Ctx<'a> {
                 Type::Basic(Basic::Never)
             }
 
-            ObjectKind::Class(_o) => Type::Class(ClassType { obj: obj.clone() }),
+            ObjectKind::Class(_o) => Type::Class(ClassType {}),
 
             ObjectKind::Module(_o) => Type::Basic(Basic::Never),
             ObjectKind::Namespace(_o) => {
@@ -1151,7 +1226,6 @@ impl<'a> Ctx<'a> {
     fn resolve_obj(&self, expr: &ast::Expr) -> Option<Rc<Object>> {
         match self.expr(expr) {
             Type::Named(named) => Some(named.obj.clone()),
-            Type::Class(cls) => Some(cls.obj.clone()),
             _ => None,
         }
     }
@@ -1186,7 +1260,10 @@ impl<'a> Ctx<'a> {
                 Cow::Borrowed(t) => Cow::Borrowed(typ),
             },
 
-            Type::Named(named) => self.concrete_obj(named.obj.clone(), &named.type_arguments),
+            Type::Named(named) => match self.concrete_list(&named.type_arguments) {
+                Cow::Owned(t) => Cow::Owned(Type::Named(Named::new(named.obj.clone(), t))),
+                Cow::Borrowed(_) => Cow::Borrowed(typ),
+            },
 
             Type::Interface(iface) => {
                 let concrete_fields = |fields: &'b [InterfaceField]| -> Cow<'b, [InterfaceField]> {
@@ -1249,13 +1326,16 @@ impl<'a> Ctx<'a> {
             }
 
             // TODO is this correct?
-            Type::Class(cls) => self.concrete_obj(cls.obj.clone(), &[]),
+            // Class types are already concrete.
+            Type::Class(_) => Cow::Borrowed(typ),
 
             Type::Generic(generic) => match generic {
-                Generic::TypeParam(idx) => {
+                Generic::TypeParam(param) => {
                     // If the type parameter is a concrete type, return that.
-                    if let Some(arg) = self.type_args.get(*idx) {
-                        Cow::Borrowed(arg)
+                    if let Some(arg) = self.type_args.get(param.idx) {
+                        // We could use Borrowed here, but currently we use 'Owned' to signify
+                        // that the type has changed.
+                        Cow::Owned(arg.clone())
                     } else {
                         // We don't have a concrete type, so return the original type.
                         Cow::Borrowed(typ)
@@ -1263,8 +1343,9 @@ impl<'a> Ctx<'a> {
                 }
 
                 Generic::Keyof(source) => {
-                    let source = self.concrete(source);
-                    Cow::Owned(self.keyof(&source))
+                    let concrete_source = self.concrete(source);
+                    let keys = self.keyof(&concrete_source);
+                    Cow::Owned(keys)
                 }
 
                 Generic::Conditional(cond) => {
@@ -1275,7 +1356,7 @@ impl<'a> Ctx<'a> {
                     // See https://www.typescriptlang.org/docs/handbook/advanced-types.html#distributive-conditional-types
 
                     match (cond.check_type.as_ref(), check.into_owned()) {
-                        (Type::Generic(Generic::TypeParam(idx)), Type::Union(check)) => {
+                        (Type::Generic(Generic::TypeParam(param)), Type::Union(check)) => {
                             // If check is a union, apply the check to each type in the union.
                             let mut type_args = self.type_args.to_owned();
 
@@ -1285,12 +1366,14 @@ impl<'a> Ctx<'a> {
                                 .into_iter()
                                 .filter_map(|c| {
                                     // Modify the type args.
-                                    if type_args.len() > *idx {
-                                        type_args[*idx] = c.clone();
+                                    if type_args.len() > param.idx {
+                                        type_args[param.idx] = c.clone();
                                     }
                                     let nested = self.clone().with_type_args(&type_args);
-                                    match c.assignable(&extends) {
-                                        Some(true) => Some(nested.concrete(&cond.true_type).into_owned()),
+                                    match c.assignable(self.state, &extends) {
+                                        Some(true) => {
+                                            Some(nested.concrete(&cond.true_type).into_owned())
+                                        }
                                         Some(false) => {
                                             Some(nested.concrete(&cond.false_type).into_owned())
                                         }
@@ -1305,7 +1388,7 @@ impl<'a> Ctx<'a> {
                         }
 
                         // Otherwise just check the single element.
-                        (_, check) => match check.assignable(&extends) {
+                        (_, check) => match check.assignable(self.state, &extends) {
                             Some(true) => self.concrete(&cond.true_type),
                             Some(false) => self.concrete(&cond.false_type),
                             // This implies there's a generic type in this mix,
@@ -1318,38 +1401,39 @@ impl<'a> Ctx<'a> {
                 Generic::Index((source, index)) => {
                     let source = self.concrete(source);
                     let index = self.concrete(index);
-                    let result =
-                        self.type_index(Span::default(), source.into_owned(), index.into_owned());
+                    let result = self.type_index(Span::default(), &source, &index);
                     Cow::Owned(result)
                 }
 
                 Generic::Mapped(mapped) => {
-                    // // Create a nested context to evaluate the mapped type.
-                    // let nested = self.clone().with_mapped_key_type(Some())Ctx {
-                    //     state: self.state,
-                    //     module: self.module,
-                    //     type_params: self.type_params,
-                    //     type_args: self.type_args,
-                    //     mapped_key_id: Some(mapped.key),
-                    // };
-
                     let mut iface = Interface {
                         fields: vec![],
                         index: None,
                         call: None,
                     };
 
-                    let keys = self.concrete(&mapped.in_type).into_owned();
-                    for entry in keys.into_iter_unions() {
+                    let keys = self.underlying(&mapped.in_type).into_owned();
+                    for key in keys.into_iter_unions() {
                         let value = self
                             .clone()
-                            .with_mapped_key_type(Some(&entry))
+                            .with_mapped_key_type(Some(&key))
                             .concrete(&mapped.value_type)
                             .into_owned();
 
-                        match entry {
+                        // If the value resolves to 'never' it should be skipped.
+                        if let Type::Basic(Basic::Never) = &value {
+                            continue;
+                        }
+
+                        // Get the underlying key type if it's named.
+
+                        match key {
                             // Never means the field should be excluded.
-                            Type::Basic(Basic::Never) => continue,
+                            Type::Basic(Basic::Never) => {
+                                HANDLER.with(|handler| {
+                                    handler.err("unexpected 'never' type as mapped type key");
+                                });
+                            }
 
                             // Do we have a wildcard type like "string" or "number"?
                             // If so treat it as an index signature.
@@ -1357,7 +1441,7 @@ impl<'a> Ctx<'a> {
                             | Type::Basic(Basic::Number)
                             | Type::Basic(Basic::Symbol)) => {
                                 // TODO actually do the mapping/filtering
-                                iface.index = Some((Box::new(source), Box::new(value)));
+                                iface.index = Some((Box::new(source.clone()), Box::new(value)));
                             }
 
                             // Do we have a string literal?
@@ -1371,7 +1455,7 @@ impl<'a> Ctx<'a> {
                                 };
 
                                 iface.fields.push(InterfaceField {
-                                    name: str,
+                                    name: str.clone(),
                                     typ,
                                     optional,
                                 });
@@ -1397,24 +1481,30 @@ impl<'a> Ctx<'a> {
         }
     }
 
-    pub fn concrete_obj<'b>(&'b self, obj: Rc<Object>, type_args: &'b [Type]) -> Cow<'b, Type> {
-        // First compute the concrete type arguments using the current context.
-        let type_arguments = self.concrete_list(type_args);
+    pub fn underlying_named(&self, named: &Named) -> Type {
+        let type_params = named.obj.kind.type_params().collect::<Vec<_>>();
+        let type_args = self.concrete_list(&named.type_arguments);
+        let typ = self.obj_type(&named.obj);
 
-        let type_params: Vec<_> = obj.kind.type_params().collect();
-        let nested = Ctx {
-            state: self.state,
-            module: obj.module_id,
-            type_params: &type_params,
-            type_args: &type_arguments,
-            mapped_key_id: None,
-            mapped_key_type: None,
-        };
+        let ctx = self
+            .clone()
+            .with_type_params(&type_params)
+            .with_type_args(&type_args);
+        ctx.underlying(&typ).into_owned()
+    }
 
-        // Then compute the underlying base type.
-        // TODO: can we make this use Cow::Borrowed?
-        let obj_type = self.obj_type(obj.clone());
-        Cow::Owned(nested.concrete(&obj_type).into_owned())
+    pub fn underlying<'b>(&'b self, typ: &'b Type) -> Cow<'b, Type> {
+        // Ensure we resolve the concrete type.
+        match self.concrete(typ) {
+            Cow::Borrowed(tt) => match tt {
+                Type::Named(named) => Cow::Borrowed(named.underlying(self.state)),
+                _ => Cow::Borrowed(typ),
+            },
+            Cow::Owned(tt) => match tt {
+                Type::Named(named) => Cow::Owned(named.underlying(self.state).clone()),
+                _ => Cow::Owned(tt),
+            },
+        }
     }
 
     fn concrete_list<'b>(&'b self, v: &'b [Type]) -> Cow<'b, [Type]> {

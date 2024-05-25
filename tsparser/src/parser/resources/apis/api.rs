@@ -188,7 +188,7 @@ pub const ENDPOINT_PARSER: ResourceParser = ResourceParser {
             };
 
             let encoding = describe_endpoint(
-                pass.type_checker.ctx(),
+                pass.type_checker,
                 methods,
                 path,
                 request,

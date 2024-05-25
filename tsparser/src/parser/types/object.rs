@@ -2,10 +2,10 @@ use std::cell::{Cell, OnceCell, RefCell};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
-use std::ops::Deref;
 use std::rc::Rc;
 
 use anyhow::Result;
+use serde::Serialize;
 use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
 use swc_common::Spanned;
@@ -30,14 +30,20 @@ pub struct Object {
     pub(super) state: RefCell<CheckState>,
 }
 
+impl Serialize for Object {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.name.as_ref().unwrap_or(&"".to_string()))
+    }
+}
+
 impl Debug for Object {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Object")
-            .field("id", &self.id)
-            .field("range", &self.range)
+            // .field("id", &self.id)
+            // .field("range", &self.range)
             .field("name", &self.name)
-            .field("kind", &self.kind)
-            .field("module_id", &self.module_id)
+            // .field("kind", &self.kind)
+            // .field("module_id", &self.module_id)
             .finish()
     }
 }
@@ -72,8 +78,12 @@ impl ObjectKind {
     pub fn type_params<'a>(&'a self) -> Box<dyn Iterator<Item = &'a ast::TsTypeParam> + 'a> {
         match self {
             ObjectKind::TypeName(TypeName { decl }) => match decl {
-                TypeNameDecl::Interface(i) => Box::new(i.type_params.iter().flat_map(|p| p.params.iter())),
-                TypeNameDecl::TypeAlias(t) => Box::new(t.type_params.iter().flat_map(|p| p.params.iter())),
+                TypeNameDecl::Interface(i) => {
+                    Box::new(i.type_params.iter().flat_map(|p| p.params.iter()))
+                }
+                TypeNameDecl::TypeAlias(t) => {
+                    Box::new(t.type_params.iter().flat_map(|p| p.params.iter()))
+                }
             },
             _ => Box::new([].iter()),
         }
@@ -133,28 +143,28 @@ pub struct Using {
 }
 
 #[derive(Debug)]
-struct NSData {
+pub struct NSData {
     /// The objects imported by the module.
-    imports: HashMap<AstId, ImportedName>,
+    pub imports: HashMap<AstId, ImportedName>,
 
     /// Top-level objects, keyed by their id.
-    top_level: HashMap<AstId, Rc<Object>>,
+    pub top_level: HashMap<AstId, Rc<Object>>,
 
     /// The named exports.
-    named_exports: HashMap<String, Rc<Object>>,
+    pub named_exports: HashMap<String, Rc<Object>>,
 
     /// The default export, if any.
-    default_export: Option<Rc<Object>>,
+    pub default_export: Option<Rc<Object>>,
 
     /// Export items that haven't yet been processed.
     #[allow(dead_code)]
-    unprocessed_exports: Vec<ast::ModuleItem>,
+    pub unprocessed_exports: Vec<ast::ModuleItem>,
 }
 
 #[derive(Debug)]
 pub struct Module {
-    base: Lrc<module_loader::Module>,
-    data: Box<NSData>,
+    pub base: Lrc<module_loader::Module>,
+    pub data: Box<NSData>,
 }
 
 #[derive(Debug, Clone)]
@@ -610,7 +620,11 @@ impl ResolveState {
             .ok_or_else(|| anyhow::anyhow!("internal error: module not found: {:?}", module_id))
     }
 
-    pub(super) fn resolve_module_ident(&self, module_id: ModuleId, ident: &ast::Ident) -> Option<Rc<Object>> {
+    pub(super) fn resolve_module_ident(
+        &self,
+        module_id: ModuleId,
+        ident: &ast::Ident,
+    ) -> Option<Rc<Object>> {
         let module = self.lookup_module(module_id)?;
 
         // Is it a top-level object in this module?

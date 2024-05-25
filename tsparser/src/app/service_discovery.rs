@@ -176,10 +176,10 @@ mod tests {
                 let ar = txtar::from_str(src);
                 ar.materialize(tmp_dir)?;
 
-                let resolver = Box::new(TestResolver::new(tmp_dir, &ar));
+                let resolver = Box::new(TestResolver::new(tmp_dir.to_path_buf(), ar.clone()));
                 let pc = ParseContext::with_resolver(
                     tmp_dir.to_path_buf(),
-                    JS_RUNTIME_PATH.as_path(),
+                    JS_RUNTIME_PATH.clone(),
                     resolver,
                     cm,
                     errs.clone(),

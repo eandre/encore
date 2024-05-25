@@ -466,7 +466,7 @@ export const Bar = 5;
             );
 
             let base = PathBuf::from("/dummy");
-            let resolver = Box::new(TestResolver::new(&base, &ar));
+            let resolver = Box::new(TestResolver::new(base.to_path_buf(), ar.clone()));
             let tmp = TempDir::new().unwrap();
             let app_root = tmp.child("app_root").to_path_buf();
             let cm: Rc<SourceMap> = Default::default();
@@ -476,7 +476,7 @@ export const Bar = 5;
                 false,
                 Some(cm.clone()),
             ));
-            let pc = ParseContext::with_resolver(app_root, &JS_RUNTIME_PATH, resolver, cm, errs).unwrap();
+            let pc = ParseContext::with_resolver(app_root, JS_RUNTIME_PATH.clone(), resolver, cm, errs).unwrap();
             let mods = pc.loader.load_archive(&base, &ar).unwrap();
 
             let foo_mod = mods.get(&"/dummy/foo.ts".into()).unwrap();
@@ -545,7 +545,7 @@ export const Bar = 5;
             );
 
             let base = PathBuf::from("/dummy");
-            let resolver = Box::new(TestResolver::new(&base, &ar));
+            let resolver = Box::new(TestResolver::new(base.clone(), ar.clone()));
             let tmp = TempDir::new().unwrap();
             let app_root = tmp.child("app_root").to_path_buf();
             let cm: Rc<SourceMap> = Default::default();
@@ -555,7 +555,7 @@ export const Bar = 5;
                 false,
                 Some(cm.clone()),
             ));
-            let pc = ParseContext::with_resolver(app_root, &JS_RUNTIME_PATH, resolver, cm, errs).unwrap();
+            let pc = ParseContext::with_resolver(app_root, JS_RUNTIME_PATH.clone(), resolver, cm, errs).unwrap();
             let mods = pc.loader.load_archive(&base, &ar).unwrap();
 
             let foo_mod = mods.get(&"/dummy/foo.ts".into()).unwrap();

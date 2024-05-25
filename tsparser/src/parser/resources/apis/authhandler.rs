@@ -56,7 +56,7 @@ pub const AUTHHANDLER_PARSER: ResourceParser = ResourceParser {
                 .type_checker
                 .resolve_obj(pass.module.clone(), &ast::Expr::Ident(r.bind_name.clone()));
 
-            let encoding = describe_auth_handler(pass.type_checker.ctx(), request, response)?;
+            let encoding = describe_auth_handler(pass.type_checker.state(), request, response)?;
 
             let resource = Resource::AuthHandler(Lrc::new(AuthHandler {
                 range: r.range,

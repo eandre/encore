@@ -1,15 +1,15 @@
 use crate::parser::types::type_resolve::Ctx;
 use crate::parser::types::{object, ResolveState};
+use serde::Serialize;
 use std::cell::OnceCell;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use swc_ecma_loader::resolve::Resolve;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct TypeArgId(usize);
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, Serialize)]
 pub enum Type {
     /// strings, etc
     Basic(Basic),
@@ -97,7 +97,7 @@ impl Type {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum Basic {
     Any,
     String,
@@ -113,7 +113,7 @@ pub enum Basic {
     Never,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum Literal {
     String(String),
     Boolean(bool),
@@ -175,7 +175,7 @@ impl Hash for Literal {
     }
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, Serialize)]
 pub struct Interface {
     /// Explicitly defined fields.
     pub fields: Vec<InterfaceField>,
@@ -233,7 +233,7 @@ impl PartialEq for Interface {
     }
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, Serialize)]
 pub struct InterfaceField {
     pub name: String,
     pub typ: Type,
@@ -246,9 +246,9 @@ impl InterfaceField {
     }
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, Serialize)]
 pub struct ClassType {
-    pub obj: Rc<object::Object>,
+    // TODO: include class fields here
 }
 
 impl ClassType {
@@ -257,11 +257,12 @@ impl ClassType {
     }
 }
 
-#[derive(Debug, Clone)]
+
+#[derive(Debug, Clone, Serialize)]
 pub struct Named {
     pub obj: Rc<object::Object>,
     pub type_arguments: Vec<Type>,
-
+    #[serde(skip)]
     underlying: OnceCell<Box<Type>>,
 }
 
@@ -291,23 +292,21 @@ impl Named {
                 return false;
             }
         }
-
         true
     }
 
-    pub fn underlying(&self, rs: &ResolveState) -> &Type {
+    pub fn underlying(&self, state: &ResolveState) -> &Type {
         self.underlying.get_or_init(|| {
-            let ctx = Ctx::new(rs, self.obj.module_id);
-            let typ = ctx.concrete_obj(self.obj.clone(), &self.type_arguments);
-            Box::new(typ.into_owned())
+            let ctx = Ctx::new(state, self.obj.module_id);
+            Box::new(ctx.underlying_named(self))
         })
     }
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, Serialize)]
 pub enum Generic {
     /// A reference to a generic type parameter.
-    TypeParam(usize),
+    TypeParam(TypeParam),
 
     /// An index lookup, like `T[U]`, where at least one of the types is a generic.
     Index((Box<Type>, Box<Type>)),
@@ -324,7 +323,28 @@ pub enum Generic {
     // MappedAsType,
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, Serialize)]
+pub struct TypeParam {
+    // The index of the type parameter in the current scope.
+    pub idx: usize,
+
+    // Any additional constraint on the type parameter.
+    // If provided, it can be assumed that the type parameter is assignable to this type.
+    pub constraint: Option<Box<Type>>,
+}
+
+impl TypeParam {
+    pub fn identical(&self, other: &TypeParam) -> bool {
+        self.idx == other.idx
+            && match (self.constraint.as_ref(), other.constraint.as_ref()) {
+                (Some(a), Some(b)) => a.identical(b),
+                (None, None) => true,
+                _ => false,
+            }
+    }
+}
+
+#[derive(Debug, Clone, Hash, Serialize)]
 pub struct Mapped {
     /// The type being evaluated to find property names.
     /// Must be evaluated using the property name in the evaluation context.
@@ -338,7 +358,13 @@ pub struct Mapped {
     // pub as_type: Option<Box<Type>>,
 }
 
-#[derive(Debug, Clone, Hash)]
+impl Mapped {
+    pub fn identical(&self, other: &Mapped) -> bool {
+        self.in_type.identical(&other.in_type) && self.value_type.identical(&other.value_type)
+    }
+}
+
+#[derive(Debug, Clone, Hash, Serialize)]
 pub struct Conditional {
     pub check_type: Box<Type>,
     pub extends_type: Box<Type>,
@@ -346,16 +372,10 @@ pub struct Conditional {
     pub false_type: Box<Type>,
 }
 
-impl Mapped {
-    pub fn identical(&self, other: &Mapped) -> bool {
-        self.in_type.identical(&other.in_type) && self.value_type.identical(&other.value_type)
-    }
-}
-
 impl Generic {
     pub fn identical(&self, other: &Generic) -> bool {
         match (self, other) {
-            (Generic::TypeParam(a), Generic::TypeParam(b)) => *a == *b,
+            (Generic::TypeParam(a), Generic::TypeParam(b)) => a.identical(b),
             (Generic::Mapped(a), Generic::Mapped(b)) => a.identical(b),
             _ => false,
         }
@@ -381,11 +401,21 @@ impl Type {
 impl Type {
     /// Reports whether `self` is assignable to `other`.
     /// If the result is indeterminate due to an unresolved type, it reports None.
-    pub fn assignable(&self, other: &Type) -> Option<bool> {
+    pub fn assignable(&self, state: &ResolveState, other: &Type) -> Option<bool> {
         match (self, other) {
             (_, Type::Basic(Basic::Any)) => Some(true),
             (_, Type::Basic(Basic::Never)) => Some(false),
             (Type::Generic(_), _) | (_, Type::Generic(_)) => None,
+
+            // Unwrap named types.
+            (Type::Named(a), b) => {
+                let a = a.underlying(state);
+                a.assignable(state, b)
+            },
+            (a, Type::Named(b)) => {
+                let b = b.underlying(state);
+                a.assignable(state, b)
+            }
 
             (Type::Basic(a), Type::Basic(b)) => Some(a == b),
             (Type::Literal(a), Type::Basic(b)) => Some(match (a, b) {
@@ -401,7 +431,7 @@ impl Type {
                 if matches!(this, Type::Basic(Basic::Undefined)) {
                     Some(true)
                 } else {
-                    this.assignable(other)
+                    this.assignable(state, other)
                 }
             }
 
@@ -413,7 +443,7 @@ impl Type {
 
                     let mut found_none = false;
                     for (this, other) in this.iter().zip(other) {
-                        match this.assignable(other) {
+                        match this.assignable(state, other) {
                             Some(true) => {}
                             Some(false) => return Some(false),
                             None => found_none = true,
@@ -429,7 +459,7 @@ impl Type {
                 Type::Array(other) => {
                     // Ensure every element in `this` is a subtype of `other`.
                     for this in this {
-                        match this.assignable(other) {
+                        match this.assignable(state, other) {
                             Some(true) => {}
                             Some(false) => return Some(false),
                             None => return None,
@@ -449,7 +479,7 @@ impl Type {
                         let mut found_none = false;
                         for field in &other.fields {
                             if let Some(this_field) = this_fields.get(field.name.as_str()) {
-                                match this_field.typ.assignable(&field.typ) {
+                                match this_field.typ.assignable(state, &field.typ) {
                                     Some(true) => {}
                                     Some(false) => return Some(false),
                                     None => found_none = true,
@@ -473,7 +503,7 @@ impl Type {
                 'ThisLoop: for t in this.iter_unions() {
                     let mut found_none = false;
                     for o in other {
-                        match t.assignable(o) {
+                        match t.assignable(state, o) {
                             // Found a match; check the next element in `this`.
                             Some(true) => continue 'ThisLoop,
 

@@ -20,7 +20,7 @@ use crate::parser::{FilePath, FileSet, Pos};
 
 /// A unique id for a module.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ModuleId(usize);
+pub struct ModuleId(pub usize);
 
 pub struct ModuleLoader {
     errs: Lrc<Handler>,
@@ -47,11 +47,7 @@ impl std::fmt::Debug for ModuleLoader {
 }
 
 impl ModuleLoader {
-    pub fn new(
-        errs: Lrc<Handler>,
-        file_set: Lrc<FileSet>,
-        resolver: Box<dyn Resolve>,
-    ) -> Self {
+    pub fn new(errs: Lrc<Handler>, file_set: Lrc<FileSet>, resolver: Box<dyn Resolve>) -> Self {
         Self {
             errs,
             file_set,

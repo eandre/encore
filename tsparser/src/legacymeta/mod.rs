@@ -621,8 +621,8 @@ mod tests {
                 let ar = txtar::from_str(src);
                 ar.materialize(tmp_dir)?;
 
-                let resolver = Box::new(TestResolver::new(tmp_dir, &ar));
-                let pc = ParseContext::with_resolver(tmp_dir.to_path_buf(), &JS_RUNTIME_PATH, resolver, cm, errs.clone())
+                let resolver = Box::new(TestResolver::new(tmp_dir.to_path_buf(), ar.clone()));
+                let pc = ParseContext::with_resolver(tmp_dir.to_path_buf(), JS_RUNTIME_PATH.clone(), resolver, cm, errs.clone())
                     .unwrap();
                 let _mods = pc.loader.load_archive(&tmp_dir, &ar).unwrap();
 
