@@ -4,13 +4,13 @@ use std::rc::Rc;
 
 use swc_common::errors::HANDLER;
 use swc_common::sync::Lrc;
-use swc_common::Spanned;
+use swc_common::{Span, Spanned};
 use swc_ecma_ast as ast;
 
 use crate::parser::module_loader;
 use crate::parser::module_loader::ModuleId;
 use crate::parser::types::object::{CheckState, ObjectKind, ResolveState, TypeNameDecl};
-use crate::parser::types::{Object, typ};
+use crate::parser::types::{typ, Object};
 
 use super::typ::*;
 
@@ -35,11 +35,7 @@ impl TypeChecker {
         let module_id = module.id;
         _ = self.ctx.get_or_init_module(module);
 
-        let ctx = Ctx {
-            state: &self.ctx,
-            module: module_id,
-            type_params: &[],
-        };
+        let ctx = Ctx::new(&self.ctx, module_id);
         ctx.typ(expr)
     }
 
@@ -52,35 +48,72 @@ impl TypeChecker {
         let module_id = module.id;
         _ = self.ctx.get_or_init_module(module);
 
-        let ctx = Ctx {
-            state: &self.ctx,
-            module: module_id,
-            type_params: &[],
-        };
+        let ctx = Ctx::new(&self.ctx, module_id);
         ctx.resolve_obj(expr)
     }
 
-    pub fn resolve_obj_type(
-        &self,
-        obj: Rc<Object>,
-    ) -> Type {
-        let ctx = Ctx {
-            state: &self.ctx,
-            module: obj.module_id,
-            type_params: &[],
-        };
+    pub fn resolve_obj_type(&self, obj: Rc<Object>) -> Type {
+        let ctx = Ctx::new(&self.ctx, obj.module_id);
         ctx.obj_type(obj)
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Ctx<'a> {
-    pub state: &'a ResolveState,
+    state: &'a ResolveState,
 
     /// The current module being resolved.
-    pub module: ModuleId,
+    module: ModuleId,
 
     /// The type parameters in the current type resolution scope.
-    pub type_params: &'a [ast::Id],
+    type_params: &'a [&'a ast::TsTypeParam],
+
+    /// The type arguments in the current type resolution scope.
+    type_args: &'a [Type],
+
+    /// Context for the current mapped type being processed, if any.
+    mapped_key_id: Option<ast::Id>,
+
+    /// The mapped key type to substitute when concretising, if any.
+    mapped_key_type: Option<&'a Type>,
+}
+
+impl<'a> Ctx<'a> {
+    pub fn new(state: &'a ResolveState, module: ModuleId) -> Self {
+        Self {
+            state,
+            module,
+            type_params: &[],
+            type_args: &[],
+            mapped_key_id: None,
+            mapped_key_type: None,
+        }
+    }
+
+    fn with_type_params(self, type_params: &'a [&'a ast::TsTypeParam]) -> Self {
+        Self {
+            type_params,
+            ..self
+        }
+    }
+
+    fn with_type_args(self, type_args: &'a [Type]) -> Self {
+        Self { type_args, ..self }
+    }
+
+    fn with_mapped_key_id(self, mapped_key_id: Option<ast::Id>) -> Self {
+        Self {
+            mapped_key_id,
+            ..self
+        }
+    }
+
+    fn with_mapped_key_type(self, mapped_key_type: Option<&'a Type>) -> Self {
+        Self {
+            mapped_key_type,
+            ..self
+        }
+    }
 }
 
 impl<'a> Ctx<'a> {
@@ -102,10 +135,10 @@ impl<'a> Ctx<'a> {
             ast::TsType::TsLitType(tt) => self.lit_type(&tt),
             ast::TsType::TsTypeOperator(tt) => self.type_op(&tt),
             ast::TsType::TsMappedType(tt) => self.mapped(&tt),
+            ast::TsType::TsIndexedAccessType(tt) => self.indexed_access(tt),
 
             ast::TsType::TsFnOrConstructorType(_)
             | ast::TsType::TsRestType(_) // same?
-            | ast::TsType::TsIndexedAccessType(_) // https://www.typescriptlang.org/docs/handbook/2/indexed-access-types.html#handbook-content
             | ast::TsType::TsTypePredicate(_) // https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates, https://www.typescriptlang.org/docs/handbook/2/classes.html#this-based-type-guards
             | ast::TsType::TsImportType(_) // ??
             | ast::TsType::TsInferType(_) => {
@@ -117,6 +150,10 @@ impl<'a> Ctx<'a> {
 
     pub fn types<'b, I: IntoIterator<Item = &'b ast::TsType>>(&self, types: I) -> Vec<Type> {
         types.into_iter().map(|t| self.typ(t)).collect()
+    }
+
+    pub fn btyp(&self, typ: &ast::TsType) -> Box<Type> {
+        Box::new(self.typ(typ))
     }
 
     /// Resolves keyof, unique, readonly, etc.
@@ -132,12 +169,83 @@ impl<'a> Ctx<'a> {
     /// Resolves a mapped type, which represents another type being modified.
     /// https://www.typescriptlang.org/docs/handbook/2/mapped-types.html
     fn mapped(&self, tt: &ast::TsMappedType) -> Type {
-        println!("got mapped: {:#?}", tt);
-        Type::Interface(Interface {
-            fields: vec![],
-            index: None,
-            call: None,
-        })
+        // [K in keyof T]: T[K]
+
+        let Some(value_type) = &tt.type_ann else {
+            HANDLER.with(|handler| handler.span_err(tt.span, "missing value type annotation"));
+            return Type::Basic(Basic::Never);
+        };
+
+        let Some(in_type) = &tt.type_param.constraint else {
+            HANDLER.with(|handler| handler.span_err(tt.span, "missing 'in' type annotation"));
+            return Type::Basic(Basic::Never);
+        };
+
+        if let Some(name_type) = &tt.name_type {
+            HANDLER.with(|handler| {
+                handler.span_err(name_type.span(), "'as' type annotation not yet supported")
+            });
+            return Type::Basic(Basic::Never);
+        };
+
+        // First parse the "in" type.
+        let in_type = self.btyp(in_type);
+
+        // Next, introduce a nested ctx that introduces the "K" mapped type parameter.
+        let nested = self
+            .clone()
+            .with_type_args(&[])
+            .with_mapped_key_id(Some(tt.type_param.name.to_id()));
+
+        // Next, parse the value type.
+        let value_type = nested.btyp(value_type);
+
+        Type::Generic(Generic::Mapped(Mapped {
+            in_type,
+            value_type,
+        }))
+    }
+
+    // https://www.typescriptlang.org/docs/handbook/2/indexed-access-types.html#handbook-content
+    fn indexed_access(&self, tt: &ast::TsIndexedAccessType) -> Type {
+        let obj = self.typ(&tt.obj_type);
+        let idx = self.typ(&tt.index_type);
+        self.type_index(tt.span, obj, idx)
+    }
+
+    fn type_index(&self, span: Span, obj: Type, idx: Type) -> Type {
+        // If either obj or index is a generic type, we need to store it as a Generic::Index.
+        match (obj, idx) {
+            pair @ ((Type::Generic(_), _) | (_, Type::Generic(_))) => {
+                Type::Generic(Generic::Index((Box::new(pair.0), Box::new(pair.1))))
+            }
+
+            // Otherwise, look up the concrete result.
+            (Type::Interface(iface), idx) => match idx {
+                Type::Literal(Literal::String(s)) => iface
+                    .fields
+                    .iter()
+                    .find(|f| f.name == s)
+                    .map_or(Type::Basic(Basic::Never), |f| f.typ.clone()),
+                Type::Basic(Basic::String | Basic::Number) => iface
+                    .index
+                    .as_ref()
+                    .map_or(Type::Basic(Basic::Never), |(_, value)| *value.clone()),
+                _ => {
+                    HANDLER.with(|handler| {
+                        handler.span_err(span, "unsupported index access type operation")
+                    });
+                    Type::Basic(Basic::Never)
+                }
+            },
+
+            _ => {
+                HANDLER.with(|handler| {
+                    handler.span_err(span, "unsupported indexed access type operation")
+                });
+                Type::Basic(Basic::Never)
+            }
+        }
     }
 
     /// Given a type, produces a union type of the underlying keys,
@@ -200,9 +308,8 @@ impl<'a> Ctx<'a> {
 
             Type::This => Type::Basic(Basic::Never),
 
-            Type::Generic(_) => {
-                HANDLER.with(|handler| handler.err("keyof Generic not yet supported"));
-                Type::Basic(Basic::Never)
+            Type::Generic(generic) => {
+                Type::Generic(Generic::Keyof(Box::new(Type::Generic(generic.clone()))))
             }
         }
     }
@@ -210,14 +317,15 @@ impl<'a> Ctx<'a> {
     /// Resolves the typeof operator.
     fn type_query(&self, typ: &ast::TsTypeQuery) -> Type {
         if typ.type_args.is_some() {
-            HANDLER
-                .with(|handler| handler.span_err(typ.span, "typeof with type args not yet supported"));
+            HANDLER.with(|handler| {
+                handler.span_err(typ.span, "typeof with type args not yet supported")
+            });
             return Type::Basic(Basic::Never);
         }
 
         match &typ.expr_name {
             ast::TsTypeQueryExpr::TsEntityName(ast::TsEntityName::Ident(ident)) => {
-                let _obj = self.ident(ident);
+                let _obj = self.ident_obj(ident);
                 HANDLER.with(|handler| handler.span_err(ident.span, "typeof not yet supported"));
                 Type::Basic(Basic::Never)
                 // Ok(match &*obj {
@@ -270,9 +378,15 @@ impl<'a> Ctx<'a> {
                         continue;
                     }
 
+                    let typ = self.typ(p.type_ann.as_ref().unwrap().type_ann.as_ref());
+                    if let Type::Basic(Basic::Never) = typ {
+                        // Ignore fields with type `never`.
+                        continue;
+                    }
+
                     fields.push(InterfaceField {
                         name,
-                        typ: self.typ(p.type_ann.as_ref().unwrap().type_ann.as_ref()),
+                        typ,
                         optional: p.optional,
                     });
                 }
@@ -351,9 +465,42 @@ impl<'a> Ctx<'a> {
         let ident: &ast::Ident = match typ.type_name {
             ast::TsEntityName::Ident(ref i) => i,
             ast::TsEntityName::TsQualifiedName(_) => {
-                HANDLER.with(|handler| handler.span_err(typ.span, "qualified name not yet supported"));
+                HANDLER
+                    .with(|handler| handler.span_err(typ.span, "qualified name not yet supported"));
                 return Type::Basic(Basic::Never);
             }
+        };
+
+        // Is this a reference to a type parameter?
+        if let Some(type_param) = self
+            .type_params
+            .iter()
+            .enumerate()
+            .find(|tp| tp.1.name.sym == ident.sym)
+        {
+            // Do we have a type argument for this type parameter?
+            return if let Some(type_arg) = self.type_args.get(type_param.0) {
+                type_arg.clone()
+            } else {
+                Type::Generic(Generic::TypeParam(type_param.0))
+            };
+        }
+
+        // Otherwise, is this a reference to the current mapped 'key' type?
+        if let Some(mapped_type_ctx) = &self.mapped_key_id {
+            if ident.to_id() == *mapped_type_ctx {
+                // Do we have a mapped key type?
+                return if let Some(mapped_key_type) = self.mapped_key_type {
+                    mapped_key_type.clone()
+                } else {
+                    Type::Generic(Generic::MappedKeyType)
+                };
+            }
+        }
+
+        let Some(obj) = self.ident_obj(ident) else {
+            HANDLER.with(|handler| handler.span_err(ident.span, "unknown identifier"));
+            return Type::Basic(Basic::Never);
         };
 
         let mut type_arguments =
@@ -363,11 +510,6 @@ impl<'a> Ctx<'a> {
                 type_arguments.push(self.typ(p));
             }
         }
-
-        let Some(obj) = self.ident(ident) else {
-            HANDLER.with(|handler| handler.span_err(ident.span, "unknown identifier"));
-            return Type::Basic(Basic::Never);
-        };
 
         match &obj.kind {
             ObjectKind::TypeName(_) => {
@@ -381,7 +523,9 @@ impl<'a> Ctx<'a> {
                     Type::Named(named)
                 }
             }
-            ObjectKind::Enum(_) | ObjectKind::Class(_) => Type::Named(Named::new(obj, type_arguments)),
+            ObjectKind::Enum(_) | ObjectKind::Class(_) => {
+                Type::Named(Named::new(obj, type_arguments))
+            }
             ObjectKind::Var(_) | ObjectKind::Using(_) | ObjectKind::Func(_) => {
                 HANDLER.with(|handler| handler.span_err(ident.span, "value used as type"));
                 Type::Basic(Basic::Never)
@@ -427,8 +571,19 @@ impl<'a> Ctx<'a> {
 
     // https://www.typescriptlang.org/docs/handbook/2/conditional-types.html
     fn conditional(&self, tt: &ast::TsConditionalType) -> Type {
-        // TODO For now just return the true branch.
-        self.typ(&tt.true_type)
+        let check = self.typ(&tt.check_type);
+        let extends = self.typ(&tt.extends_type);
+
+        match check.assignable(&extends) {
+            Some(true) => self.typ(&tt.true_type),
+            Some(false) => self.typ(&tt.false_type),
+            None => Type::Generic(Generic::Conditional(Conditional {
+                check_type: Box::new(check),
+                extends_type: Box::new(extends),
+                true_type: self.btyp(&tt.true_type),
+                false_type: self.btyp(&tt.false_type),
+            })),
+        }
     }
 
     fn intersection(&self, typ: &ast::TsIntersectionType) -> Type {
@@ -451,7 +606,9 @@ impl<'a> Ctx<'a> {
             ast::TsKeywordTypeKind::TsNullKeyword => Basic::Null,
             ast::TsKeywordTypeKind::TsNeverKeyword => Basic::Never,
             ast::TsKeywordTypeKind::TsIntrinsicKeyword => {
-                HANDLER.with(|handler| handler.span_err(typ.span, "unimplemented: TsIntrinsicKeyword"));
+                HANDLER.with(|handler| {
+                    handler.span_err(typ.span, "unimplemented: TsIntrinsicKeyword")
+                });
                 Basic::Never
             }
         };
@@ -468,12 +625,10 @@ impl<'a> Ctx<'a> {
             return Type::Basic(Basic::Never);
         }
 
-        self.typ(
-            &ast::TsType::TsTypeLit(ast::TsTypeLit {
-                span: decl.span,
-                members: decl.body.body.clone(),
-            }),
-        )
+        self.typ(&ast::TsType::TsTypeLit(ast::TsTypeLit {
+            span: decl.span,
+            members: decl.body.body.clone(),
+        }))
     }
 
     fn expr(&self, expr: &ast::Expr) -> Type {
@@ -504,16 +659,17 @@ impl<'a> Ctx<'a> {
                 let left = self.expr(&expr.left);
                 let right = self.expr(&expr.right);
 
-                match left.unify(right) {
-                    Ok(unified) => unified,
+                match left.unify(&right) {
+                    Some(unified) => unified,
                     // TODO handle this correctly.
-                    Err((left, _right)) => left,
+                    None => left,
                 }
             }
             ast::Expr::Assign(expr) => self.expr(&expr.right),
             ast::Expr::Member(expr) => self.member_expr(expr),
             ast::Expr::SuperProp(_) => {
-                HANDLER.with(|handler| handler.span_err(expr.span(), "super prop not yet supported"));
+                HANDLER
+                    .with(|handler| handler.span_err(expr.span(), "super prop not yet supported"));
                 Type::Basic(Basic::Never)
             }
             ast::Expr::Cond(cond) => {
@@ -535,7 +691,7 @@ impl<'a> Ctx<'a> {
                 None => Type::Basic(Basic::Never),
             },
             ast::Expr::Ident(expr) => {
-                let Some(obj) = self.ident(expr) else {
+                let Some(obj) = self.ident_obj(expr) else {
                     HANDLER.with(|handler| handler.span_err(expr.span, "unknown identifier"));
                     return Type::Basic(Basic::Never);
                 };
@@ -551,7 +707,7 @@ impl<'a> Ctx<'a> {
                 }
             }
             ast::Expr::PrivateName(expr) => {
-                let Some(obj) = self.ident(&expr.id) else {
+                let Some(obj) = self.ident_obj(&expr.id) else {
                     HANDLER.with(|handler| handler.span_err(expr.id.span, "unknown identifier"));
                     return Type::Basic(Basic::Never);
                 };
@@ -565,26 +721,32 @@ impl<'a> Ctx<'a> {
                 ast::Lit::Num(_) => Type::Basic(Basic::Number),
                 ast::Lit::BigInt(_) => Type::Basic(Basic::BigInt),
                 ast::Lit::Regex(_) => {
-                    HANDLER.with(|handler| handler.span_err(expr.span(), "regex not yet supported"));
+                    HANDLER
+                        .with(|handler| handler.span_err(expr.span(), "regex not yet supported"));
                     Type::Basic(Basic::Never)
                 }
                 ast::Lit::JSXText(_) => {
-                    HANDLER.with(|handler| handler.span_err(expr.span(), "jsx text not yet supported"));
+                    HANDLER.with(|handler| {
+                        handler.span_err(expr.span(), "jsx text not yet supported")
+                    });
                     Type::Basic(Basic::Never)
                 }
             },
             ast::Expr::Tpl(_) => Type::Basic(Basic::String),
             ast::Expr::TaggedTpl(_) => {
-                HANDLER
-                    .with(|handler| handler.span_err(expr.span(), "tagged template not yet supported"));
+                HANDLER.with(|handler| {
+                    handler.span_err(expr.span(), "tagged template not yet supported")
+                });
                 Type::Basic(Basic::Never)
             }
             ast::Expr::Arrow(_) => {
-                HANDLER.with(|handler| handler.span_err(expr.span(), "arrow expr not yet supported"));
+                HANDLER
+                    .with(|handler| handler.span_err(expr.span(), "arrow expr not yet supported"));
                 Type::Basic(Basic::Never)
             }
             ast::Expr::Class(_) => {
-                HANDLER.with(|handler| handler.span_err(expr.span(), "class expr not yet supported"));
+                HANDLER
+                    .with(|handler| handler.span_err(expr.span(), "class expr not yet supported"));
                 Type::Basic(Basic::Never)
             }
             ast::Expr::Yield(expr) => match &expr.arg {
@@ -594,7 +756,9 @@ impl<'a> Ctx<'a> {
             ast::Expr::MetaProp(expr) => match expr.kind {
                 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target
                 ast::MetaPropKind::NewTarget => {
-                    HANDLER.with(|handler| handler.span_err(expr.span, "new.target not yet supported"));
+                    HANDLER.with(|handler| {
+                        handler.span_err(expr.span, "new.target not yet supported")
+                    });
                     Type::Basic(Basic::Never)
                 }
                 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import.meta
@@ -646,7 +810,10 @@ impl<'a> Ctx<'a> {
                         let non_null = types
                             .into_iter()
                             .filter(|t| {
-                                !matches!(t, Type::Basic(Basic::Undefined) | Type::Basic(Basic::Null))
+                                !matches!(
+                                    t,
+                                    Type::Basic(Basic::Undefined) | Type::Basic(Basic::Null)
+                                )
                             })
                             .collect::<Vec<_>>();
                         match &non_null.len() {
@@ -661,8 +828,9 @@ impl<'a> Ctx<'a> {
 
             // "foo?.bar"
             ast::Expr::OptChain(expr) => {
-                HANDLER
-                    .with(|handler| handler.span_err(expr.span, "optional chaining not yet supported"));
+                HANDLER.with(|handler| {
+                    handler.span_err(expr.span, "optional chaining not yet supported")
+                });
                 Type::Basic(Basic::Never)
             }
 
@@ -712,8 +880,10 @@ impl<'a> Ctx<'a> {
                 ast::PropOrSpread::Prop(prop) => {
                     let (name, typ) = match prop.as_ref() {
                         ast::Prop::Shorthand(id) => {
-                            let Some(obj) = self.ident(&id) else {
-                                HANDLER.with(|handler| handler.span_err(id.span, "unknown identifier"));
+                            let Some(obj) = self.ident_obj(&id) else {
+                                HANDLER.with(|handler| {
+                                    handler.span_err(id.span, "unknown identifier")
+                                });
                                 return Type::Basic(Basic::Never);
                             };
 
@@ -727,7 +897,8 @@ impl<'a> Ctx<'a> {
                         }
                         ast::Prop::Assign(prop) => {
                             HANDLER.with(|handler| {
-                                handler.span_err(prop.span(), "unsupported assign in object literal")
+                                handler
+                                    .span_err(prop.span(), "unsupported assign in object literal")
                             });
                             return Type::Basic(Basic::Never);
                         }
@@ -763,8 +934,9 @@ impl<'a> Ctx<'a> {
                             fields.extend(interface.fields);
                         }
                         _ => {
-                            HANDLER
-                                .with(|handler| handler.span_err(spread.span(), "unsupported spread"));
+                            HANDLER.with(|handler| {
+                                handler.span_err(spread.span(), "unsupported spread")
+                            });
                         }
                     }
                 }
@@ -853,7 +1025,6 @@ impl<'a> Ctx<'a> {
             }
         }
     }
-
 }
 
 impl<'a> Ctx<'a> {
@@ -882,13 +1053,11 @@ impl<'a> Ctx<'a> {
         // Mark this object as being checked.
         *obj.state.borrow_mut() = CheckState::InProgress;
 
+        let type_params: Vec<_> = obj.kind.type_params().collect();
+
         let typ = {
             // Create a nested ctx that uses the object's module.
-            let ctx = Ctx {
-                state: self.state,
-                module: obj.module_id,
-                type_params: &[], // is this correct?
-            };
+            let ctx = Ctx::new(self.state, obj.module_id).with_type_params(&type_params);
             ctx.resolve_obj_type(obj.clone())
         };
 
@@ -914,9 +1083,14 @@ impl<'a> Ctx<'a> {
                 let mut fields = Vec::with_capacity(o.members.len());
                 for m in &o.members {
                     let field_type = match &m.init {
-                        None => typ::Type::Basic(Basic::Number),
+                        None => Type::Basic(Basic::Number),
                         Some(expr) => self.expr(&*expr),
                     };
+                    if let Type::Basic(Basic::Never) = &field_type {
+                        // Ignore fields with type `never`.
+                        continue;
+                    }
+
                     let name = match &m.id {
                         ast::TsEnumMemberId::Ident(id) => id.sym.as_ref().to_string(),
                         ast::TsEnumMemberId::Str(str) => str.value.as_ref().to_string(),
@@ -974,10 +1148,7 @@ impl<'a> Ctx<'a> {
         }
     }
 
-    fn resolve_obj(
-        &self,
-        expr: &ast::Expr,
-    ) -> Option<Rc<Object>> {
+    fn resolve_obj(&self, expr: &ast::Expr) -> Option<Rc<Object>> {
         match self.expr(expr) {
             Type::Named(named) => Some(named.obj.clone()),
             Type::Class(cls) => Some(cls.obj.clone()),
@@ -985,7 +1156,281 @@ impl<'a> Ctx<'a> {
         }
     }
 
-    fn ident(&self, ident: &ast::Ident) -> Option<Rc<Object>> {
-        self.state.resolve_ident(self.module, ident)
+    fn ident_obj(&self, ident: &ast::Ident) -> Option<Rc<Object>> {
+        // Does this represent a type parameter?
+        self.state.resolve_module_ident(self.module, ident)
+    }
+}
+
+impl<'a> Ctx<'a> {
+    pub fn concrete<'b>(&'b self, typ: &'b Type) -> Cow<'b, Type> {
+        match typ {
+            // Basic types that never change.
+            Type::Basic(_) | Type::Literal(_) | Type::This => Cow::Borrowed(typ),
+
+            // Nested types that recurse.
+            Type::Array(elem) => match self.concrete(elem) {
+                Cow::Owned(t) => Cow::Owned(Type::Array(Box::new(t))),
+                Cow::Borrowed(t) => Cow::Borrowed(typ),
+            },
+            Type::Tuple(types) => match self.concrete_list(types) {
+                Cow::Owned(t) => Cow::Owned(Type::Tuple(t)),
+                Cow::Borrowed(t) => Cow::Borrowed(typ),
+            },
+            Type::Union(types) => match self.concrete_list(types) {
+                Cow::Owned(t) => Cow::Owned(Type::Union(t)),
+                Cow::Borrowed(t) => Cow::Borrowed(typ),
+            },
+            Type::Optional(typ) => match self.concrete(typ) {
+                Cow::Owned(t) => Cow::Owned(Type::Optional(Box::new(t))),
+                Cow::Borrowed(t) => Cow::Borrowed(typ),
+            },
+
+            Type::Named(named) => self.concrete_obj(named.obj.clone(), &named.type_arguments),
+
+            Type::Interface(iface) => {
+                let concrete_fields = |fields: &'b [InterfaceField]| -> Cow<'b, [InterfaceField]> {
+                    for (i, field) in fields.iter().enumerate() {
+                        if let Cow::Owned(t) = self.concrete(&field.typ) {
+                            // We have a new type, so we need to clone the entire list.
+                            let mut res = Vec::with_capacity(fields.len());
+                            res.extend(fields[0..i].iter().cloned());
+
+                            res.push(InterfaceField {
+                                typ: t,
+                                name: field.name.clone(),
+                                optional: field.optional,
+                            });
+
+                            // Copy all remaining elements.
+                            res.extend(fields[i + 1..].iter().map(|t| InterfaceField {
+                                name: t.name.clone(),
+                                typ: self.concrete(&t.typ).into_owned(),
+                                optional: t.optional,
+                            }));
+
+                            // Filter out any `never` types.
+                            res.retain(|f| !matches!(f.typ, Type::Basic(Basic::Never)));
+
+                            return Cow::Owned(res);
+                        }
+                    }
+                    // All types are the same, so we can just return the original list.
+                    Cow::Borrowed(fields)
+                };
+
+                let fields = concrete_fields(&iface.fields);
+                let index = match &iface.index {
+                    Some((key, val)) => Some((self.concrete(key), self.concrete(val))),
+                    None => None,
+                };
+                let call = match &iface.call {
+                    Some((params, ret)) => {
+                        Some((self.concrete_list(params), self.concrete_list(ret)))
+                    }
+                    None => None,
+                };
+
+                // If we have any Owned parts, we need to make the whole thing Owned.
+                // Otherwise return the original type.
+                if matches!(fields, Cow::Owned(_))
+                    || matches!(index, Some((Cow::Owned(_), _) | (_, Cow::Owned(_))))
+                    || matches!(call, Some((Cow::Owned(_), _) | (_, Cow::Owned(_))))
+                {
+                    Cow::Owned(Type::Interface(Interface {
+                        fields: fields.into_owned(),
+                        index: index
+                            .map(|(k, v)| (Box::new(k.into_owned()), Box::new(v.into_owned()))),
+                        call: call.map(|(p, r)| (p.into_owned(), r.into_owned())),
+                    }))
+                } else {
+                    Cow::Borrowed(typ)
+                }
+            }
+
+            // TODO is this correct?
+            Type::Class(cls) => self.concrete_obj(cls.obj.clone(), &[]),
+
+            Type::Generic(generic) => match generic {
+                Generic::TypeParam(idx) => {
+                    // If the type parameter is a concrete type, return that.
+                    if let Some(arg) = self.type_args.get(*idx) {
+                        Cow::Borrowed(arg)
+                    } else {
+                        // We don't have a concrete type, so return the original type.
+                        Cow::Borrowed(typ)
+                    }
+                }
+
+                Generic::Keyof(source) => {
+                    let source = self.concrete(source);
+                    Cow::Owned(self.keyof(&source))
+                }
+
+                Generic::Conditional(cond) => {
+                    let check = self.concrete(&cond.check_type);
+                    let extends = self.concrete(&cond.extends_type);
+
+                    // Is this a "distributed conditional type"?
+                    // See https://www.typescriptlang.org/docs/handbook/advanced-types.html#distributive-conditional-types
+
+                    match (cond.check_type.as_ref(), check.into_owned()) {
+                        (Type::Generic(Generic::TypeParam(idx)), Type::Union(check)) => {
+                            // If check is a union, apply the check to each type in the union.
+                            let mut type_args = self.type_args.to_owned();
+
+                            // Construct a modified context that modifies the given type argument
+                            // to refer only to the concrete type for this union.
+                            let result: Vec<_> = check
+                                .into_iter()
+                                .filter_map(|c| {
+                                    // Modify the type args.
+                                    if type_args.len() > *idx {
+                                        type_args[*idx] = c.clone();
+                                    }
+                                    let nested = self.clone().with_type_args(&type_args);
+                                    match c.assignable(&extends) {
+                                        Some(true) => Some(nested.concrete(&cond.true_type).into_owned()),
+                                        Some(false) => {
+                                            Some(nested.concrete(&cond.false_type).into_owned())
+                                        }
+                                        // This implies there's a generic type in this mix,
+                                        // which shouldn't happen when concretizing.
+                                        None => None,
+                                    }
+                                })
+                                .collect();
+
+                            Cow::Owned(unify_union(result))
+                        }
+
+                        // Otherwise just check the single element.
+                        (_, check) => match check.assignable(&extends) {
+                            Some(true) => self.concrete(&cond.true_type),
+                            Some(false) => self.concrete(&cond.false_type),
+                            // This implies there's a generic type in this mix,
+                            // which shouldn't happen when concretizing.
+                            None => Cow::Owned(Type::Basic(Basic::Never)),
+                        },
+                    }
+                }
+
+                Generic::Index((source, index)) => {
+                    let source = self.concrete(source);
+                    let index = self.concrete(index);
+                    let result =
+                        self.type_index(Span::default(), source.into_owned(), index.into_owned());
+                    Cow::Owned(result)
+                }
+
+                Generic::Mapped(mapped) => {
+                    // // Create a nested context to evaluate the mapped type.
+                    // let nested = self.clone().with_mapped_key_type(Some())Ctx {
+                    //     state: self.state,
+                    //     module: self.module,
+                    //     type_params: self.type_params,
+                    //     type_args: self.type_args,
+                    //     mapped_key_id: Some(mapped.key),
+                    // };
+
+                    let mut iface = Interface {
+                        fields: vec![],
+                        index: None,
+                        call: None,
+                    };
+
+                    let keys = self.concrete(&mapped.in_type).into_owned();
+                    for entry in keys.into_iter_unions() {
+                        let value = self
+                            .clone()
+                            .with_mapped_key_type(Some(&entry))
+                            .concrete(&mapped.value_type)
+                            .into_owned();
+
+                        match entry {
+                            // Never means the field should be excluded.
+                            Type::Basic(Basic::Never) => continue,
+
+                            // Do we have a wildcard type like "string" or "number"?
+                            // If so treat it as an index signature.
+                            source @ (Type::Basic(Basic::String)
+                            | Type::Basic(Basic::Number)
+                            | Type::Basic(Basic::Symbol)) => {
+                                // TODO actually do the mapping/filtering
+                                iface.index = Some((Box::new(source), Box::new(value)));
+                            }
+
+                            // Do we have a string literal?
+                            Type::Literal(Literal::String(str)) => {
+                                // Unwrap optional and record it on the field instead.
+                                let (typ, optional) = match value {
+                                    // Never means the field should be excluded.
+                                    Type::Basic(Basic::Never) => continue,
+                                    Type::Optional(typ) => (*typ, true),
+                                    typ => (typ, false),
+                                };
+
+                                iface.fields.push(InterfaceField {
+                                    name: str,
+                                    typ,
+                                    optional,
+                                });
+                            }
+
+                            typ => {
+                                HANDLER.with(|handler| {
+                                    handler
+                                        .err(&format!("unsupported mapped key type: {:#?}", typ));
+                                });
+                            }
+                        }
+                    }
+
+                    Cow::Owned(Type::Interface(iface))
+                }
+
+                Generic::MappedKeyType => match self.mapped_key_type {
+                    Some(key) => Cow::Borrowed(key),
+                    None => Cow::Borrowed(typ),
+                },
+            },
+        }
+    }
+
+    pub fn concrete_obj<'b>(&'b self, obj: Rc<Object>, type_args: &'b [Type]) -> Cow<'b, Type> {
+        // First compute the concrete type arguments using the current context.
+        let type_arguments = self.concrete_list(type_args);
+
+        let type_params: Vec<_> = obj.kind.type_params().collect();
+        let nested = Ctx {
+            state: self.state,
+            module: obj.module_id,
+            type_params: &type_params,
+            type_args: &type_arguments,
+            mapped_key_id: None,
+            mapped_key_type: None,
+        };
+
+        // Then compute the underlying base type.
+        // TODO: can we make this use Cow::Borrowed?
+        let obj_type = self.obj_type(obj.clone());
+        Cow::Owned(nested.concrete(&obj_type).into_owned())
+    }
+
+    fn concrete_list<'b>(&'b self, v: &'b [Type]) -> Cow<'b, [Type]> {
+        for (i, typ) in v.iter().enumerate() {
+            if let Cow::Owned(t) = self.concrete(typ) {
+                // We have a new type, so we need to clone the entire list.
+                let mut res = Vec::with_capacity(v.len());
+                res.extend(v[0..i].iter().cloned());
+                res.push(t);
+
+                // Copy all remaining elements.
+                res.extend(v[i + 1..].iter().map(|t| self.concrete(t).into_owned()));
+                return Cow::Owned(res);
+            }
+        }
+        // All types are the same, so we can just return the original list.
+        Cow::Borrowed(v)
     }
 }

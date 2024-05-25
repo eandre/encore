@@ -68,6 +68,18 @@ pub enum ObjectKind {
     Namespace(Namespace),
 }
 
+impl ObjectKind {
+    pub fn type_params<'a>(&'a self) -> Box<dyn Iterator<Item = &'a ast::TsTypeParam> + 'a> {
+        match self {
+            ObjectKind::TypeName(TypeName { decl }) => match decl {
+                TypeNameDecl::Interface(i) => Box::new(i.type_params.iter().flat_map(|p| p.params.iter())),
+                TypeNameDecl::TypeAlias(t) => Box::new(t.type_params.iter().flat_map(|p| p.params.iter())),
+            },
+            _ => Box::new([].iter()),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub(super) enum CheckState {
     NotStarted,
@@ -598,7 +610,7 @@ impl ResolveState {
             .ok_or_else(|| anyhow::anyhow!("internal error: module not found: {:?}", module_id))
     }
 
-    pub(super) fn resolve_ident(&self, module_id: ModuleId, ident: &ast::Ident) -> Option<Rc<Object>> {
+    pub(super) fn resolve_module_ident(&self, module_id: ModuleId, ident: &ast::Ident) -> Option<Rc<Object>> {
         let module = self.lookup_module(module_id)?;
 
         // Is it a top-level object in this module?

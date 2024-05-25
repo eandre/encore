@@ -112,6 +112,7 @@ fn main() -> Result<()> {
 
                         match builder.parse(&pp) {
                             Ok(result) => {
+                                log::info!("parse successful");
                                 write_result(Ok(result.desc.meta.encode_to_vec().as_slice()))?;
                                 parse = Some((app, result));
                             }
@@ -143,8 +144,10 @@ fn main() -> Result<()> {
                                 use_local_runtime: input.use_local_runtime,
                             };
 
+                            log::info!("starting compile");
                             match builder.compile(&cp) {
                                 Ok(compile) => {
+                                    log::info!("compile successful");
                                     let json = serde_json::to_string(&compile)?;
                                     write_result(Ok(json.as_bytes()))?;
                                 }
@@ -193,6 +196,7 @@ fn main() -> Result<()> {
                                 parse: &parse,
                             };
 
+                            log::info!("starting generate user facing code");
                             match builder.generate_code(&cp) {
                                 Ok(_) => write_result(Ok(&[]))?,
                                 Err(err) => {

@@ -54,7 +54,7 @@ impl<'a> SchemaBuilder<'a> {
             Type::Interface(tt) => schema::Type {
                 typ: Some(styp::Typ::Struct(self.interface(tt)?)),
             },
-            Type::Union(_) => anyhow::bail!("union types are not yet supported in schemas"),
+            Type::Union(types) => anyhow::bail!("union types are not yet supported in schemas: {:#?}", types),
             Type::Tuple(_) => anyhow::bail!("tuple types are not yet supported in schemas"),
             Type::Literal(tt) => schema::Type {
                 typ: Some(styp::Typ::Builtin(self.literal(tt)? as i32)),
@@ -65,8 +65,8 @@ impl<'a> SchemaBuilder<'a> {
             },
             Type::Optional(_) => anyhow::bail!("optional types are not yet supported in schemas"),
             Type::This => anyhow::bail!("this types are not yet supported in schemas"),
-            Type::Generic(_) => {
-                anyhow::bail!("unresolved generic types are not supported in schemas")
+            Type::Generic(typ) => {
+                anyhow::bail!("unresolved generic types are not supported in schemas, got: {:#?}", typ)
             }
         })
     }
