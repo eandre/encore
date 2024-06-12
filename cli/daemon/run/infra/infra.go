@@ -227,7 +227,7 @@ func (rm *ResourceManager) UpdateConfig(cfg *config.Runtime, md *meta.Data, dbPr
 
 	if cluster := rm.GetSQLCluster(); cluster != nil {
 		srv := &config.SQLServer{
-			Host: "localhost:" + strconv.Itoa(dbProxyPort),
+			Host: "127.0.0.1:" + strconv.Itoa(dbProxyPort),
 		}
 		serverID := len(cfg.SQLServers)
 		cfg.SQLServers = append(cfg.SQLServers, srv)

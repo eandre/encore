@@ -99,6 +99,8 @@ func (cm *ClusterManager) Create(ctx context.Context, params *CreateParams) *Clu
 			dbs:      make(map[string]*DB),
 		}
 
+		log.Info().Str("password", passwd).Str("cluster_key", string(key)).Msg("sqldb: created cluster")
+
 		cm.clusters[key] = c
 	}
 
