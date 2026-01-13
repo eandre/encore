@@ -1,0 +1,301 @@
+---
+source: pyparser/src/parser/types/tests.rs
+expression: result
+input_file: pyparser/src/parser/types/testdata/generics.py
+---
+{
+    "T": TypeVar(
+        TypeVar {
+            name: "T",
+            constraints: [],
+            bound: None,
+            variance: Invariant,
+        },
+    ),
+    "K": TypeVar(
+        TypeVar {
+            name: "K",
+            constraints: [],
+            bound: None,
+            variance: Invariant,
+        },
+    ),
+    "V": TypeVar(
+        TypeVar {
+            name: "V",
+            constraints: [],
+            bound: None,
+            variance: Invariant,
+        },
+    ),
+    "Numeric": TypeVar(
+        TypeVar {
+            name: "Numeric",
+            constraints: [
+                Basic(
+                    Int,
+                ),
+                Basic(
+                    Float,
+                ),
+            ],
+            bound: None,
+            variance: Invariant,
+        },
+    ),
+    "Comparable": TypeVar(
+        TypeVar {
+            name: "Comparable",
+            constraints: [],
+            bound: Some(
+                Basic(
+                    Str,
+                ),
+            ),
+            variance: Invariant,
+        },
+    ),
+    "T_co": TypeVar(
+        TypeVar {
+            name: "T_co",
+            constraints: [],
+            bound: None,
+            variance: Covariant,
+        },
+    ),
+    "T_contra": TypeVar(
+        TypeVar {
+            name: "T_contra",
+            constraints: [],
+            bound: None,
+            variance: Contravariant,
+        },
+    ),
+    "Container": Class(
+        ClassType {
+            obj: Object {
+                id: ObjectId(
+                    0,
+                ),
+                range: 361..402,
+                name: Some(
+                    "Container",
+                ),
+                kind: Class(
+                    Class {
+                        bases: [
+                            Subscript(
+                                ExprSubscript {
+                                    range: 377..387,
+                                    value: Name(
+                                        ExprName {
+                                            range: 377..384,
+                                            id: Name("Generic"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    slice: Name(
+                                        ExprName {
+                                            range: 385..386,
+                                            id: Name("T"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    ctx: Load,
+                                },
+                            ),
+                        ],
+                        body: [
+                            AnnAssign(
+                                StmtAnnAssign {
+                                    range: 394..402,
+                                    target: Name(
+                                        ExprName {
+                                            range: 394..399,
+                                            id: Name("value"),
+                                            ctx: Store,
+                                        },
+                                    ),
+                                    annotation: Name(
+                                        ExprName {
+                                            range: 401..402,
+                                            id: Name("T"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    value: None,
+                                    simple: true,
+                                },
+                            ),
+                        ],
+                        type_params: [],
+                        decorators: [],
+                        is_dataclass: false,
+                        is_named_tuple: false,
+                    },
+                ),
+                module_id: ModuleId(
+                    0,
+                ),
+                state: RefCell {
+                    value: NotStarted,
+                },
+            },
+            type_arguments: [],
+            class_attrs: [],
+            instance_attrs: [
+                InterfaceField {
+                    range: 394..402,
+                    name: String(
+                        "value",
+                    ),
+                    optional: false,
+                    readonly: false,
+                    typ: Any,
+                    doc: None,
+                },
+            ],
+            methods: [],
+            bases: [
+                Any,
+            ],
+        },
+    ),
+    "Mapping": Class(
+        ClassType {
+            obj: Object {
+                id: ObjectId(
+                    0,
+                ),
+                range: 404..457,
+                name: Some(
+                    "Mapping",
+                ),
+                kind: Class(
+                    Class {
+                        bases: [
+                            Subscript(
+                                ExprSubscript {
+                                    range: 418..431,
+                                    value: Name(
+                                        ExprName {
+                                            range: 418..425,
+                                            id: Name("Generic"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    slice: Tuple(
+                                        ExprTuple {
+                                            range: 426..430,
+                                            elts: [
+                                                Name(
+                                                    ExprName {
+                                                        range: 426..427,
+                                                        id: Name("K"),
+                                                        ctx: Load,
+                                                    },
+                                                ),
+                                                Name(
+                                                    ExprName {
+                                                        range: 429..430,
+                                                        id: Name("V"),
+                                                        ctx: Load,
+                                                    },
+                                                ),
+                                            ],
+                                            ctx: Load,
+                                            parenthesized: false,
+                                        },
+                                    ),
+                                    ctx: Load,
+                                },
+                            ),
+                        ],
+                        body: [
+                            AnnAssign(
+                                StmtAnnAssign {
+                                    range: 438..444,
+                                    target: Name(
+                                        ExprName {
+                                            range: 438..441,
+                                            id: Name("key"),
+                                            ctx: Store,
+                                        },
+                                    ),
+                                    annotation: Name(
+                                        ExprName {
+                                            range: 443..444,
+                                            id: Name("K"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    value: None,
+                                    simple: true,
+                                },
+                            ),
+                            AnnAssign(
+                                StmtAnnAssign {
+                                    range: 449..457,
+                                    target: Name(
+                                        ExprName {
+                                            range: 449..454,
+                                            id: Name("value"),
+                                            ctx: Store,
+                                        },
+                                    ),
+                                    annotation: Name(
+                                        ExprName {
+                                            range: 456..457,
+                                            id: Name("V"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    value: None,
+                                    simple: true,
+                                },
+                            ),
+                        ],
+                        type_params: [],
+                        decorators: [],
+                        is_dataclass: false,
+                        is_named_tuple: false,
+                    },
+                ),
+                module_id: ModuleId(
+                    0,
+                ),
+                state: RefCell {
+                    value: NotStarted,
+                },
+            },
+            type_arguments: [],
+            class_attrs: [],
+            instance_attrs: [
+                InterfaceField {
+                    range: 438..444,
+                    name: String(
+                        "key",
+                    ),
+                    optional: false,
+                    readonly: false,
+                    typ: Any,
+                    doc: None,
+                },
+                InterfaceField {
+                    range: 449..457,
+                    name: String(
+                        "value",
+                    ),
+                    optional: false,
+                    readonly: false,
+                    typ: Any,
+                    doc: None,
+                },
+            ],
+            methods: [],
+            bases: [
+                Any,
+            ],
+        },
+    ),
+}

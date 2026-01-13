@@ -1,0 +1,46 @@
+# Lambda expressions and their scoping
+
+# Simple lambda
+add = lambda x, y: x + y
+
+# Lambda with default argument
+greet = lambda name="World": f"Hello, {name}"
+
+# Lambda capturing from enclosing scope
+multiplier = 10
+scale = lambda x: x * multiplier
+
+# Lambda in function
+def make_adder(n):
+    return lambda x: x + n
+
+
+# Nested lambdas
+compose = lambda f, g: lambda x: f(g(x))
+
+# Lambda with *args and **kwargs
+variadic = lambda *args, **kwargs: (args, kwargs)
+
+# Lambda in list
+operations = [
+    lambda x: x + 1,
+    lambda x: x * 2,
+    lambda x: x ** 2,
+]
+
+# Lambda in dict
+handlers = {
+    "add": lambda a, b: a + b,
+    "sub": lambda a, b: a - b,
+    "mul": lambda a, b: a * b,
+}
+
+# Lambda with conditional
+absolute = lambda x: x if x >= 0 else -x
+
+# Higher-order with lambda
+def apply_twice(f):
+    return lambda x: f(f(x))
+
+
+result = apply_twice(lambda x: x + 1)(5)  # 7

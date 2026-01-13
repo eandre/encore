@@ -1,0 +1,145 @@
+---
+source: pyparser/src/parser/types/tests.rs
+expression: result
+input_file: pyparser/src/parser/types/testdata/callable.py
+---
+{
+    "simple_fn": Callable(
+        FunctionType {
+            params: [],
+            return_type: Basic(
+                None,
+            ),
+            type_params: None,
+            is_async: false,
+        },
+    ),
+    "with_args": Callable(
+        FunctionType {
+            params: [
+                FunctionParam {
+                    name: None,
+                    typ: Basic(
+                        Int,
+                    ),
+                    optional: false,
+                    variadic: false,
+                    keyword_variadic: false,
+                    kind: Regular,
+                },
+                FunctionParam {
+                    name: None,
+                    typ: Basic(
+                        Str,
+                    ),
+                    optional: false,
+                    variadic: false,
+                    keyword_variadic: false,
+                    kind: Regular,
+                },
+            ],
+            return_type: Basic(
+                Bool,
+            ),
+            type_params: None,
+            is_async: false,
+        },
+    ),
+    "any_args": Callable(
+        FunctionType {
+            params: [
+                FunctionParam {
+                    name: None,
+                    typ: Any,
+                    optional: false,
+                    variadic: true,
+                    keyword_variadic: false,
+                    kind: Regular,
+                },
+            ],
+            return_type: Basic(
+                Int,
+            ),
+            type_params: None,
+            is_async: false,
+        },
+    ),
+    "higher_order": Callable(
+        FunctionType {
+            params: [
+                FunctionParam {
+                    name: None,
+                    typ: Callable(
+                        FunctionType {
+                            params: [
+                                FunctionParam {
+                                    name: None,
+                                    typ: Basic(
+                                        Int,
+                                    ),
+                                    optional: false,
+                                    variadic: false,
+                                    keyword_variadic: false,
+                                    kind: Regular,
+                                },
+                            ],
+                            return_type: Basic(
+                                Int,
+                            ),
+                            type_params: None,
+                            is_async: false,
+                        },
+                    ),
+                    optional: false,
+                    variadic: false,
+                    keyword_variadic: false,
+                    kind: Regular,
+                },
+            ],
+            return_type: Basic(
+                Int,
+            ),
+            type_params: None,
+            is_async: false,
+        },
+    ),
+    "returns_callable": Callable(
+        FunctionType {
+            params: [
+                FunctionParam {
+                    name: None,
+                    typ: Basic(
+                        Int,
+                    ),
+                    optional: false,
+                    variadic: false,
+                    keyword_variadic: false,
+                    kind: Regular,
+                },
+            ],
+            return_type: Callable(
+                FunctionType {
+                    params: [
+                        FunctionParam {
+                            name: None,
+                            typ: Basic(
+                                Str,
+                            ),
+                            optional: false,
+                            variadic: false,
+                            keyword_variadic: false,
+                            kind: Regular,
+                        },
+                    ],
+                    return_type: Basic(
+                        Bool,
+                    ),
+                    type_params: None,
+                    is_async: false,
+                },
+            ),
+            type_params: None,
+            is_async: false,
+        },
+    ),
+}

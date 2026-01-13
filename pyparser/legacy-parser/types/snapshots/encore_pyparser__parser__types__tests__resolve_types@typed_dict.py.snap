@@ -1,0 +1,133 @@
+---
+source: pyparser/src/parser/types/tests.rs
+expression: result
+input_file: pyparser/src/parser/types/testdata/typed_dict.py
+---
+{
+    "UserDict": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    range: 113..122,
+                    name: String(
+                        "name",
+                    ),
+                    optional: false,
+                    readonly: false,
+                    typ: Basic(
+                        Str,
+                    ),
+                    doc: None,
+                },
+                InterfaceField {
+                    range: 127..135,
+                    name: String(
+                        "age",
+                    ),
+                    optional: false,
+                    readonly: false,
+                    typ: Basic(
+                        Int,
+                    ),
+                    doc: None,
+                },
+                InterfaceField {
+                    range: 140..150,
+                    name: String(
+                        "email",
+                    ),
+                    optional: false,
+                    readonly: false,
+                    typ: Basic(
+                        Str,
+                    ),
+                    doc: None,
+                },
+            ],
+            index_signature: None,
+            total: true,
+        },
+    ),
+    "PartialDict": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    range: 199..208,
+                    name: String(
+                        "name",
+                    ),
+                    optional: true,
+                    readonly: false,
+                    typ: Basic(
+                        Str,
+                    ),
+                    doc: None,
+                },
+                InterfaceField {
+                    range: 213..226,
+                    name: String(
+                        "nickname",
+                    ),
+                    optional: true,
+                    readonly: false,
+                    typ: Basic(
+                        Str,
+                    ),
+                    doc: None,
+                },
+            ],
+            index_signature: None,
+            total: false,
+        },
+    ),
+    "MixedDict": Interface(
+        Interface {
+            fields: [
+                InterfaceField {
+                    range: 260..277,
+                    name: String(
+                        "id",
+                    ),
+                    optional: false,
+                    readonly: false,
+                    typ: Basic(
+                        Int,
+                    ),
+                    doc: None,
+                },
+                InterfaceField {
+                    range: 282..291,
+                    name: String(
+                        "name",
+                    ),
+                    optional: false,
+                    readonly: false,
+                    typ: Basic(
+                        Str,
+                    ),
+                    doc: None,
+                },
+                InterfaceField {
+                    range: 296..333,
+                    name: String(
+                        "metadata",
+                    ),
+                    optional: true,
+                    readonly: false,
+                    typ: Dict(
+                        Basic(
+                            Str,
+                        ),
+                        Basic(
+                            Str,
+                        ),
+                    ),
+                    doc: None,
+                },
+            ],
+            index_signature: None,
+            total: true,
+        },
+    ),
+    "Point": Any,
+}

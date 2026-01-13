@@ -1,0 +1,41 @@
+[package]
+name = "encore-pyparser"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "pyparser-encore"
+
+[[example]]
+name = "python-testparse"
+
+[dependencies]
+anyhow = { version = "1.0.75", features = ["backtrace"] }
+handlebars = { version = "4.4.0", features = ["no_logging"] }
+log = "0.4.20"
+prost = "0.12.1"
+serde = { version = "1.0.188", features = ["rc", "derive"] }
+serde_json = { version = "1.0.107", features = ["preserve_order"] }
+thiserror = "1.0.64"
+walkdir = "2.4"
+
+# Ruff Python parser dependencies
+ruff_python_ast = { git = "https://github.com/astral-sh/ruff.git", tag = "0.8.6" }
+ruff_python_parser = { git = "https://github.com/astral-sh/ruff.git", tag = "0.8.6" }
+ruff_text_size = { git = "https://github.com/astral-sh/ruff.git", tag = "0.8.6" }
+ruff_source_file = { git = "https://github.com/astral-sh/ruff.git", tag = "0.8.6" }
+env_logger = "0.11.8"
+dashmap = "6.1.0"
+memo-map = "0.3.3"
+
+# Local crates
+pylitparser = { path = "./pylitparser" }
+pylitparser-derive = { path = "./pylitparser-derive" }
+
+[dev-dependencies]
+tempfile = "3.10"
+insta = { version = "1.42.0", features = ["yaml", "glob"] }
+indexmap = "2.2"
+
+[build-dependencies]
+prost-build = { version = "0.12.1" }

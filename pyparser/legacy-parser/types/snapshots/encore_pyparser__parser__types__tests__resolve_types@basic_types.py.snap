@@ -1,0 +1,31 @@
+---
+source: pyparser/src/parser/types/tests.rs
+expression: result
+input_file: pyparser/src/parser/types/testdata/basic_types.py
+---
+{
+    "name": Basic(
+        Str,
+    ),
+    "age": Basic(
+        Int,
+    ),
+    "height": Basic(
+        Float,
+    ),
+    "is_active": Basic(
+        Bool,
+    ),
+    "data": Basic(
+        Bytes,
+    ),
+    "nothing": Basic(
+        None,
+    ),
+    "StringAlias": Basic(
+        Str,
+    ),
+    "IntAlias": Basic(
+        Int,
+    ),
+}

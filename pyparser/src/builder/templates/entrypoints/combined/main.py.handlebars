@@ -1,0 +1,52 @@
+"""
+Generated entrypoint for Encore Python application.
+This file is auto-generated - do not edit manually.
+"""
+from __future__ import annotations
+
+from encoredev._internal.appinit import register_handlers, run
+
+{{#each services}}
+{{#if import_path}}
+# Import service: {{name}}
+import {{import_path}} as {{snakeCase name}}_svc
+{{/if}}
+{{/each}}
+
+{{#each endpoints}}
+# Import endpoint: {{service_name}}.{{name}}
+from {{import_path}} import {{name}} as {{snakeCase service_name}}_{{snakeCase name}}_impl
+{{/each}}
+
+{{#each gateways}}
+# Import gateway: {{encore_name}}
+from {{import_path}} import {{bind_name}} as {{snakeCase encore_name}}_gw
+{{/each}}
+
+
+# Register all API handlers
+_handlers: list[dict] = [
+{{#each endpoints}}
+    {
+        "service": {{toPython service_name}},
+        "name": {{toPython name}},
+        "handler": {{snakeCase service_name}}_{{snakeCase name}}_impl,
+        "raw": {{#if raw}}True{{else}}False{{/if}},
+        "streaming": {{#if streaming}}True{{else}}False{{/if}},
+    },
+{{/each}}
+]
+
+# Register all gateways
+_gateways: list = [
+{{#each gateways}}
+    {{snakeCase encore_name}}_gw,
+{{/each}}
+]
+
+
+# Register handlers with the runtime
+register_handlers(_handlers)
+
+# Run the runtime
+run()

@@ -1,0 +1,29 @@
+---
+source: pyparser/src/parser/resources/infra/tests.rs
+expression: output
+---
+# Source: pubsub_aliased.py
+
+```python
+# Test aliased imports for pub/sub
+
+from dataclasses import dataclass
+from encoredev.pubsub import Topic as PubSubTopic
+
+@dataclass
+class AliasedMessage:
+    value: str
+
+# Should be detected - aliased import from correct module
+aliased_topic = PubSubTopic[AliasedMessage]("aliased", {})
+
+# Should NOT be detected - wrong module, even though name is "Topic"
+from other.module import Topic as OtherTopic
+
+other = OtherTopic("other")
+```
+
+=== Parsed Topics ===
+
+Topic: aliased
+  delivery_guarantee: at-least-once

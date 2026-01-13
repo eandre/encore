@@ -16,6 +16,7 @@ use super::transaction::Transaction;
 
 type Mgr = PostgresConnectionManager<postgres_native_tls::MakeTlsConnector>;
 
+#[derive(Clone)]
 pub struct Pool {
     pool: bb8::Pool<Mgr>,
     tracer: QueryTracer,

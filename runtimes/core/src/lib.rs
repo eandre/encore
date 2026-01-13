@@ -59,6 +59,7 @@ pub mod encore {
 }
 
 pub struct RuntimeBuilder {
+    tokio_handle: Option<tokio::runtime::Handle>,
     cfg: Option<runtimepb::RuntimeConfig>,
     proc_cfg: Option<proccfg::ProcessConfig>,
     md: Option<metapb::Data>,
@@ -76,6 +77,7 @@ impl Default for RuntimeBuilder {
 impl RuntimeBuilder {
     pub fn new() -> Self {
         Self {
+            tokio_handle: None,
             cfg: None,
             proc_cfg: None,
             md: None,
@@ -83,6 +85,11 @@ impl RuntimeBuilder {
             test_mode: false,
             is_worker: false,
         }
+    }
+
+    pub fn with_tokio_handle(mut self, handle: tokio::runtime::Handle) -> Self {
+        self.tokio_handle = Some(handle);
+        self
     }
 
     pub fn with_test_mode(mut self, enabled: bool) -> Self {
@@ -198,7 +205,19 @@ impl RuntimeBuilder {
         if let Some(proc_config) = self.proc_cfg {
             proc_config.apply(&mut cfg)?;
         }
-        Runtime::new(cfg, md, self.test_mode)
+
+        let tokio_handle = match self.tokio_handle {
+            Some(handle) => handle,
+            None => {
+                let tokio_rt = tokio::runtime::Builder::new_multi_thread()
+                    .enable_all()
+                    .build()
+                    .context("failed to build tokio runtime")?;
+                tokio_rt.handle().clone()
+            }
+        };
+
+        Runtime::new(cfg, md, self.test_mode, tokio_handle)
     }
 }
 
@@ -211,7 +230,7 @@ pub struct Runtime {
     api: api::Manager,
     app_meta: meta::AppMeta,
     compute: ComputeConfig,
-    runtime: tokio::runtime::Runtime,
+    runtime: tokio::runtime::Handle,
     metrics: metrics::Manager,
     runtime_config: runtime_config::RuntimeConfig,
 }
@@ -225,14 +244,15 @@ impl Runtime {
         mut cfg: runtimepb::RuntimeConfig,
         md: metapb::Data,
         testing: bool,
+        runtime_handle: tokio::runtime::Handle,
     ) -> anyhow::Result<Self> {
         // Initialize OpenSSL system root certificates, so that libraries can find them.
         openssl_probe::init_ssl_cert_env_vars();
 
-        let tokio_rt = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .context("failed to build tokio runtime")?;
+        // let tokio_rt = tokio::runtime::Builder::new_multi_thread()
+        //     .enable_all()
+        //     .build()
+        //     .context("failed to build tokio runtime")?;
 
         let app_meta = meta::AppMeta::new(&cfg, &md);
         let runtime_config = runtime_config::RuntimeConfig::new(&cfg);
@@ -263,7 +283,7 @@ impl Runtime {
             &environment,
             &secrets,
             &http_client,
-            tokio_rt.handle().clone(),
+            runtime_handle.clone(),
         );
 
         // Set up observability.
@@ -299,7 +319,7 @@ impl Runtime {
                     };
 
                     let (tracer, reporter) = trace::streaming_tracer(http_client.clone(), config);
-                    tokio_rt.spawn(reporter.start_reporting());
+                    runtime_handle.spawn(reporter.start_reporting());
                     tracer
                 }
                 None => trace::Tracer::noop(),
@@ -353,7 +373,7 @@ impl Runtime {
             creds: &creds,
             secrets: &secrets,
             tracer: tracer.clone(),
-            runtime: tokio_rt.handle().clone(),
+            runtime: runtime_handle.clone(),
         }
         .build()
         .context("unable to initialize sqldb proxy")?;
@@ -400,7 +420,7 @@ impl Runtime {
             tracer,
             platform_validator,
             pubsub_push_registry: pubsub.push_registry(),
-            runtime: tokio_rt.handle().clone(),
+            runtime: runtime_handle.clone(),
             testing,
             proxied_push_subs,
             metrics: &metrics_manager,
@@ -409,7 +429,7 @@ impl Runtime {
         .context("unable to initialize api manager")?;
 
         let sqldb_handle = sqldb.start_serving();
-        tokio_rt.spawn(async move {
+        runtime_handle.spawn(async move {
             if let Err(err) = sqldb_handle.await {
                 ::log::error!("sqldb proxy failed: {err}");
             }
@@ -426,7 +446,7 @@ impl Runtime {
             api,
             app_meta,
             compute,
-            runtime: tokio_rt,
+            runtime: runtime_handle,
             metrics: metrics_manager,
             runtime_config,
         })
@@ -474,17 +494,22 @@ impl Runtime {
 
     #[inline]
     pub fn tokio_handle(&self) -> &tokio::runtime::Handle {
-        self.runtime.handle()
+        &self.runtime
+    }
+
+    #[inline]
+    pub async fn run(&self) {
+        let api_handle = self.api().start_serving();
+
+        if let Err(err) = api_handle.await {
+            ::log::error!("failed to start serving: {:?}", err);
+        }
     }
 
     #[inline]
     pub fn run_blocking(&self) {
         self.runtime.block_on(async move {
-            let api_handle = self.api().start_serving();
-
-            if let Err(err) = api_handle.await {
-                ::log::error!("failed to start serving: {:?}", err);
-            }
+            self.run().await;
         });
     }
 

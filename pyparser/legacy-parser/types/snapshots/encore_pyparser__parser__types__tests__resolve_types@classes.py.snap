@@ -1,0 +1,806 @@
+---
+source: pyparser/src/parser/types/tests.rs
+expression: result
+input_file: pyparser/src/parser/types/testdata/classes.py
+---
+{
+    "SimpleClass": Class(
+        ClassType {
+            obj: Object {
+                id: ObjectId(
+                    0,
+                ),
+                range: 95..140,
+                name: Some(
+                    "SimpleClass",
+                ),
+                kind: Class(
+                    Class {
+                        bases: [],
+                        body: [
+                            AnnAssign(
+                                StmtAnnAssign {
+                                    range: 118..127,
+                                    target: Name(
+                                        ExprName {
+                                            range: 118..122,
+                                            id: Name("name"),
+                                            ctx: Store,
+                                        },
+                                    ),
+                                    annotation: Name(
+                                        ExprName {
+                                            range: 124..127,
+                                            id: Name("str"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    value: None,
+                                    simple: true,
+                                },
+                            ),
+                            AnnAssign(
+                                StmtAnnAssign {
+                                    range: 132..140,
+                                    target: Name(
+                                        ExprName {
+                                            range: 132..135,
+                                            id: Name("age"),
+                                            ctx: Store,
+                                        },
+                                    ),
+                                    annotation: Name(
+                                        ExprName {
+                                            range: 137..140,
+                                            id: Name("int"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    value: None,
+                                    simple: true,
+                                },
+                            ),
+                        ],
+                        type_params: [],
+                        decorators: [],
+                        is_dataclass: false,
+                        is_named_tuple: false,
+                    },
+                ),
+                module_id: ModuleId(
+                    0,
+                ),
+                state: RefCell {
+                    value: NotStarted,
+                },
+            },
+            type_arguments: [],
+            class_attrs: [],
+            instance_attrs: [
+                InterfaceField {
+                    range: 118..127,
+                    name: String(
+                        "name",
+                    ),
+                    optional: false,
+                    readonly: false,
+                    typ: Basic(
+                        Str,
+                    ),
+                    doc: None,
+                },
+                InterfaceField {
+                    range: 132..140,
+                    name: String(
+                        "age",
+                    ),
+                    optional: false,
+                    readonly: false,
+                    typ: Basic(
+                        Int,
+                    ),
+                    doc: None,
+                },
+            ],
+            methods: [],
+            bases: [],
+        },
+    ),
+    "WithDefaults": Class(
+        ClassType {
+            obj: Object {
+                id: ObjectId(
+                    0,
+                ),
+                range: 142..206,
+                name: Some(
+                    "WithDefaults",
+                ),
+                kind: Class(
+                    Class {
+                        bases: [],
+                        body: [
+                            AnnAssign(
+                                StmtAnnAssign {
+                                    range: 166..187,
+                                    target: Name(
+                                        ExprName {
+                                            range: 166..170,
+                                            id: Name("name"),
+                                            ctx: Store,
+                                        },
+                                    ),
+                                    annotation: Name(
+                                        ExprName {
+                                            range: 172..175,
+                                            id: Name("str"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    value: Some(
+                                        StringLiteral(
+                                            ExprStringLiteral {
+                                                range: 178..187,
+                                                value: StringLiteralValue {
+                                                    inner: Single(
+                                                        StringLiteral {
+                                                            range: 178..187,
+                                                            value: "default",
+                                                            flags: StringLiteralFlags {
+                                                                quote_style: Double,
+                                                                prefix: Empty,
+                                                                triple_quoted: false,
+                                                            },
+                                                        },
+                                                    ),
+                                                },
+                                            },
+                                        ),
+                                    ),
+                                    simple: true,
+                                },
+                            ),
+                            AnnAssign(
+                                StmtAnnAssign {
+                                    range: 192..206,
+                                    target: Name(
+                                        ExprName {
+                                            range: 192..197,
+                                            id: Name("count"),
+                                            ctx: Store,
+                                        },
+                                    ),
+                                    annotation: Name(
+                                        ExprName {
+                                            range: 199..202,
+                                            id: Name("int"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    value: Some(
+                                        NumberLiteral(
+                                            ExprNumberLiteral {
+                                                range: 205..206,
+                                                value: Int(
+                                                    0,
+                                                ),
+                                            },
+                                        ),
+                                    ),
+                                    simple: true,
+                                },
+                            ),
+                        ],
+                        type_params: [],
+                        decorators: [],
+                        is_dataclass: false,
+                        is_named_tuple: false,
+                    },
+                ),
+                module_id: ModuleId(
+                    0,
+                ),
+                state: RefCell {
+                    value: NotStarted,
+                },
+            },
+            type_arguments: [],
+            class_attrs: [],
+            instance_attrs: [
+                InterfaceField {
+                    range: 166..187,
+                    name: String(
+                        "name",
+                    ),
+                    optional: true,
+                    readonly: false,
+                    typ: Basic(
+                        Str,
+                    ),
+                    doc: None,
+                },
+                InterfaceField {
+                    range: 192..206,
+                    name: String(
+                        "count",
+                    ),
+                    optional: true,
+                    readonly: false,
+                    typ: Basic(
+                        Int,
+                    ),
+                    doc: None,
+                },
+            ],
+            methods: [],
+            bases: [],
+        },
+    ),
+    "WithClassVar": Class(
+        ClassType {
+            obj: Object {
+                id: ObjectId(
+                    0,
+                ),
+                range: 208..274,
+                name: Some(
+                    "WithClassVar",
+                ),
+                kind: Class(
+                    Class {
+                        bases: [],
+                        body: [
+                            AnnAssign(
+                                StmtAnnAssign {
+                                    range: 232..260,
+                                    target: Name(
+                                        ExprName {
+                                            range: 232..241,
+                                            id: Name("instances"),
+                                            ctx: Store,
+                                        },
+                                    ),
+                                    annotation: Subscript(
+                                        ExprSubscript {
+                                            range: 243..256,
+                                            value: Name(
+                                                ExprName {
+                                                    range: 243..251,
+                                                    id: Name("ClassVar"),
+                                                    ctx: Load,
+                                                },
+                                            ),
+                                            slice: Name(
+                                                ExprName {
+                                                    range: 252..255,
+                                                    id: Name("int"),
+                                                    ctx: Load,
+                                                },
+                                            ),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    value: Some(
+                                        NumberLiteral(
+                                            ExprNumberLiteral {
+                                                range: 259..260,
+                                                value: Int(
+                                                    0,
+                                                ),
+                                            },
+                                        ),
+                                    ),
+                                    simple: true,
+                                },
+                            ),
+                            AnnAssign(
+                                StmtAnnAssign {
+                                    range: 265..274,
+                                    target: Name(
+                                        ExprName {
+                                            range: 265..269,
+                                            id: Name("name"),
+                                            ctx: Store,
+                                        },
+                                    ),
+                                    annotation: Name(
+                                        ExprName {
+                                            range: 271..274,
+                                            id: Name("str"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    value: None,
+                                    simple: true,
+                                },
+                            ),
+                        ],
+                        type_params: [],
+                        decorators: [],
+                        is_dataclass: false,
+                        is_named_tuple: false,
+                    },
+                ),
+                module_id: ModuleId(
+                    0,
+                ),
+                state: RefCell {
+                    value: NotStarted,
+                },
+            },
+            type_arguments: [],
+            class_attrs: [],
+            instance_attrs: [
+                InterfaceField {
+                    range: 232..260,
+                    name: String(
+                        "instances",
+                    ),
+                    optional: true,
+                    readonly: false,
+                    typ: Basic(
+                        Int,
+                    ),
+                    doc: None,
+                },
+                InterfaceField {
+                    range: 265..274,
+                    name: String(
+                        "name",
+                    ),
+                    optional: false,
+                    readonly: false,
+                    typ: Basic(
+                        Str,
+                    ),
+                    doc: None,
+                },
+            ],
+            methods: [],
+            bases: [],
+        },
+    ),
+    "WithFinal": Class(
+        ClassType {
+            obj: Object {
+                id: ObjectId(
+                    0,
+                ),
+                range: 276..338,
+                name: Some(
+                    "WithFinal",
+                ),
+                kind: Class(
+                    Class {
+                        bases: [],
+                        body: [
+                            AnnAssign(
+                                StmtAnnAssign {
+                                    range: 297..323,
+                                    target: Name(
+                                        ExprName {
+                                            range: 297..305,
+                                            id: Name("MAX_SIZE"),
+                                            ctx: Store,
+                                        },
+                                    ),
+                                    annotation: Subscript(
+                                        ExprSubscript {
+                                            range: 307..317,
+                                            value: Name(
+                                                ExprName {
+                                                    range: 307..312,
+                                                    id: Name("Final"),
+                                                    ctx: Load,
+                                                },
+                                            ),
+                                            slice: Name(
+                                                ExprName {
+                                                    range: 313..316,
+                                                    id: Name("int"),
+                                                    ctx: Load,
+                                                },
+                                            ),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    value: Some(
+                                        NumberLiteral(
+                                            ExprNumberLiteral {
+                                                range: 320..323,
+                                                value: Int(
+                                                    100,
+                                                ),
+                                            },
+                                        ),
+                                    ),
+                                    simple: true,
+                                },
+                            ),
+                            AnnAssign(
+                                StmtAnnAssign {
+                                    range: 328..338,
+                                    target: Name(
+                                        ExprName {
+                                            range: 328..333,
+                                            id: Name("value"),
+                                            ctx: Store,
+                                        },
+                                    ),
+                                    annotation: Name(
+                                        ExprName {
+                                            range: 335..338,
+                                            id: Name("int"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    value: None,
+                                    simple: true,
+                                },
+                            ),
+                        ],
+                        type_params: [],
+                        decorators: [],
+                        is_dataclass: false,
+                        is_named_tuple: false,
+                    },
+                ),
+                module_id: ModuleId(
+                    0,
+                ),
+                state: RefCell {
+                    value: NotStarted,
+                },
+            },
+            type_arguments: [],
+            class_attrs: [],
+            instance_attrs: [
+                InterfaceField {
+                    range: 297..323,
+                    name: String(
+                        "MAX_SIZE",
+                    ),
+                    optional: true,
+                    readonly: false,
+                    typ: Basic(
+                        Int,
+                    ),
+                    doc: None,
+                },
+                InterfaceField {
+                    range: 328..338,
+                    name: String(
+                        "value",
+                    ),
+                    optional: false,
+                    readonly: false,
+                    typ: Basic(
+                        Int,
+                    ),
+                    doc: None,
+                },
+            ],
+            methods: [],
+            bases: [],
+        },
+    ),
+    "DataClass": Class(
+        ClassType {
+            obj: Object {
+                id: ObjectId(
+                    0,
+                ),
+                range: 340..417,
+                name: Some(
+                    "DataClass",
+                ),
+                kind: Class(
+                    Class {
+                        bases: [],
+                        body: [
+                            AnnAssign(
+                                StmtAnnAssign {
+                                    range: 372..379,
+                                    target: Name(
+                                        ExprName {
+                                            range: 372..374,
+                                            id: Name("id"),
+                                            ctx: Store,
+                                        },
+                                    ),
+                                    annotation: Name(
+                                        ExprName {
+                                            range: 376..379,
+                                            id: Name("int"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    value: None,
+                                    simple: true,
+                                },
+                            ),
+                            AnnAssign(
+                                StmtAnnAssign {
+                                    range: 384..393,
+                                    target: Name(
+                                        ExprName {
+                                            range: 384..388,
+                                            id: Name("name"),
+                                            ctx: Store,
+                                        },
+                                    ),
+                                    annotation: Name(
+                                        ExprName {
+                                            range: 390..393,
+                                            id: Name("str"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    value: None,
+                                    simple: true,
+                                },
+                            ),
+                            AnnAssign(
+                                StmtAnnAssign {
+                                    range: 398..417,
+                                    target: Name(
+                                        ExprName {
+                                            range: 398..404,
+                                            id: Name("active"),
+                                            ctx: Store,
+                                        },
+                                    ),
+                                    annotation: Name(
+                                        ExprName {
+                                            range: 406..410,
+                                            id: Name("bool"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    value: Some(
+                                        BooleanLiteral(
+                                            ExprBooleanLiteral {
+                                                range: 413..417,
+                                                value: true,
+                                            },
+                                        ),
+                                    ),
+                                    simple: true,
+                                },
+                            ),
+                        ],
+                        type_params: [],
+                        decorators: [
+                            Decorator {
+                                range: 340..350,
+                                expression: Name(
+                                    ExprName {
+                                        range: 341..350,
+                                        id: Name("dataclass"),
+                                        ctx: Load,
+                                    },
+                                ),
+                            },
+                        ],
+                        is_dataclass: true,
+                        is_named_tuple: false,
+                    },
+                ),
+                module_id: ModuleId(
+                    0,
+                ),
+                state: RefCell {
+                    value: NotStarted,
+                },
+            },
+            type_arguments: [],
+            class_attrs: [],
+            instance_attrs: [
+                InterfaceField {
+                    range: 372..379,
+                    name: String(
+                        "id",
+                    ),
+                    optional: false,
+                    readonly: false,
+                    typ: Basic(
+                        Int,
+                    ),
+                    doc: None,
+                },
+                InterfaceField {
+                    range: 384..393,
+                    name: String(
+                        "name",
+                    ),
+                    optional: false,
+                    readonly: false,
+                    typ: Basic(
+                        Str,
+                    ),
+                    doc: None,
+                },
+                InterfaceField {
+                    range: 398..417,
+                    name: String(
+                        "active",
+                    ),
+                    optional: true,
+                    readonly: false,
+                    typ: Basic(
+                        Bool,
+                    ),
+                    doc: None,
+                },
+            ],
+            methods: [],
+            bases: [],
+        },
+    ),
+    "Inheriting": Class(
+        ClassType {
+            obj: Object {
+                id: ObjectId(
+                    0,
+                ),
+                range: 419..464,
+                name: Some(
+                    "Inheriting",
+                ),
+                kind: Class(
+                    Class {
+                        bases: [
+                            Name(
+                                ExprName {
+                                    range: 436..447,
+                                    id: Name("SimpleClass"),
+                                    ctx: Load,
+                                },
+                            ),
+                        ],
+                        body: [
+                            AnnAssign(
+                                StmtAnnAssign {
+                                    range: 454..464,
+                                    target: Name(
+                                        ExprName {
+                                            range: 454..459,
+                                            id: Name("email"),
+                                            ctx: Store,
+                                        },
+                                    ),
+                                    annotation: Name(
+                                        ExprName {
+                                            range: 461..464,
+                                            id: Name("str"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    value: None,
+                                    simple: true,
+                                },
+                            ),
+                        ],
+                        type_params: [],
+                        decorators: [],
+                        is_dataclass: false,
+                        is_named_tuple: false,
+                    },
+                ),
+                module_id: ModuleId(
+                    0,
+                ),
+                state: RefCell {
+                    value: NotStarted,
+                },
+            },
+            type_arguments: [],
+            class_attrs: [],
+            instance_attrs: [
+                InterfaceField {
+                    range: 454..464,
+                    name: String(
+                        "email",
+                    ),
+                    optional: false,
+                    readonly: false,
+                    typ: Basic(
+                        Str,
+                    ),
+                    doc: None,
+                },
+            ],
+            methods: [],
+            bases: [
+                Any,
+            ],
+        },
+    ),
+    "MultipleInheritance": Class(
+        ClassType {
+            obj: Object {
+                id: ObjectId(
+                    0,
+                ),
+                range: 466..533,
+                name: Some(
+                    "MultipleInheritance",
+                ),
+                kind: Class(
+                    Class {
+                        bases: [
+                            Name(
+                                ExprName {
+                                    range: 492..503,
+                                    id: Name("SimpleClass"),
+                                    ctx: Load,
+                                },
+                            ),
+                            Name(
+                                ExprName {
+                                    range: 505..517,
+                                    id: Name("WithDefaults"),
+                                    ctx: Load,
+                                },
+                            ),
+                        ],
+                        body: [
+                            AnnAssign(
+                                StmtAnnAssign {
+                                    range: 524..533,
+                                    target: Name(
+                                        ExprName {
+                                            range: 524..528,
+                                            id: Name("role"),
+                                            ctx: Store,
+                                        },
+                                    ),
+                                    annotation: Name(
+                                        ExprName {
+                                            range: 530..533,
+                                            id: Name("str"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    value: None,
+                                    simple: true,
+                                },
+                            ),
+                        ],
+                        type_params: [],
+                        decorators: [],
+                        is_dataclass: false,
+                        is_named_tuple: false,
+                    },
+                ),
+                module_id: ModuleId(
+                    0,
+                ),
+                state: RefCell {
+                    value: NotStarted,
+                },
+            },
+            type_arguments: [],
+            class_attrs: [],
+            instance_attrs: [
+                InterfaceField {
+                    range: 524..533,
+                    name: String(
+                        "role",
+                    ),
+                    optional: false,
+                    readonly: false,
+                    typ: Basic(
+                        Str,
+                    ),
+                    doc: None,
+                },
+            ],
+            methods: [],
+            bases: [
+                Any,
+                Any,
+            ],
+        },
+    ),
+}

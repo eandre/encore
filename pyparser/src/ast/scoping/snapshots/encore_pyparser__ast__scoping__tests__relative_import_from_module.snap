@@ -1,0 +1,13 @@
+---
+source: pyparser/src/ast/scoping/tests.rs
+expression: output
+---
+=== Scope Analysis ===
+
+Module: myapp.services.api
+Package: myapp.services
+
+Scope 0 (Module):
+  other (import) from myapp.parent
+  sibling (import) from myapp.services
+  thing (import) from myapp.services.sub

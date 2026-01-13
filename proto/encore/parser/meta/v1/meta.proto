@@ -32,6 +32,7 @@ message Data {
 enum Lang {
   GO = 0;
   TYPESCRIPT = 1;
+  PYTHON = 2;
 }
 
 // QualifiedName is a name of an object in a specific package.

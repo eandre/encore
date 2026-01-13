@@ -1,0 +1,20 @@
+# Basic cron job definitions
+
+from encoredev.cron import CronJob
+
+# Cron job with every interval
+daily_cleanup = CronJob("daily-cleanup", {
+    "every": "24h",
+})
+
+# Cron job with schedule expression
+weekly_report = CronJob("weekly-report", {
+    "schedule": "0 9 * * 1",
+    "title": "Weekly Report Generator",
+})
+
+# Cron job with just title
+hourly_sync = CronJob("hourly-sync", {
+    "title": "Hourly Data Sync",
+    "every": "1h",
+})

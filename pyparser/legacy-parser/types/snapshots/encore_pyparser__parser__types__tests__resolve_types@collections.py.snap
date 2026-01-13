@@ -1,0 +1,95 @@
+---
+source: pyparser/src/parser/types/tests.rs
+expression: result
+input_file: pyparser/src/parser/types/testdata/collections.py
+---
+{
+    "names": List(
+        Basic(
+            Str,
+        ),
+    ),
+    "numbers": List(
+        Basic(
+            Int,
+        ),
+    ),
+    "nested_list": List(
+        List(
+            Basic(
+                Str,
+            ),
+        ),
+    ),
+    "mapping": Dict(
+        Basic(
+            Str,
+        ),
+        Basic(
+            Int,
+        ),
+    ),
+    "complex_dict": Dict(
+        Basic(
+            Str,
+        ),
+        List(
+            Basic(
+                Int,
+            ),
+        ),
+    ),
+    "unique_ids": Set(
+        Basic(
+            Int,
+        ),
+    ),
+    "frozen_ids": FrozenSet(
+        Basic(
+            Str,
+        ),
+    ),
+    "typed_set": Set(
+        Basic(
+            Float,
+        ),
+    ),
+    "typed_frozenset": FrozenSet(
+        Basic(
+            Int,
+        ),
+    ),
+    "point": Tuple(
+        [
+            Basic(
+                Int,
+            ),
+            Basic(
+                Int,
+            ),
+        ],
+        false,
+    ),
+    "mixed_tuple": Tuple(
+        [
+            Basic(
+                Str,
+            ),
+            Basic(
+                Int,
+            ),
+            Basic(
+                Bool,
+            ),
+        ],
+        false,
+    ),
+    "variable_tuple": Tuple(
+        [
+            Basic(
+                Int,
+            ),
+        ],
+        true,
+    ),
+}

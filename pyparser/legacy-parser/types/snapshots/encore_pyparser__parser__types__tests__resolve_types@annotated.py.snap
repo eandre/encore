@@ -1,0 +1,167 @@
+---
+source: pyparser/src/parser/types/tests.rs
+expression: result
+input_file: pyparser/src/parser/types/testdata/annotated.py
+---
+{
+    "name": Annotated(
+        Annotated {
+            typ: Basic(
+                Str,
+            ),
+            metadata: [
+                Doc(
+                    "user name",
+                ),
+            ],
+        },
+    ),
+    "age": Annotated(
+        Annotated {
+            typ: Basic(
+                Int,
+            ),
+            metadata: [
+                Doc(
+                    "user age in years",
+                ),
+            ],
+        },
+    ),
+    "username": Annotated(
+        Annotated {
+            typ: Basic(
+                Str,
+            ),
+            metadata: [
+                Validation(
+                    And(
+                        [
+                            Rule(
+                                MinLen(
+                                    3,
+                                ),
+                            ),
+                            Rule(
+                                MaxLen(
+                                    50,
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ],
+        },
+    ),
+    "score": Annotated(
+        Annotated {
+            typ: Basic(
+                Int,
+            ),
+            metadata: [
+                Validation(
+                    And(
+                        [
+                            Rule(
+                                Ge(
+                                    Int(
+                                        0,
+                                    ),
+                                ),
+                            ),
+                            Rule(
+                                Le(
+                                    Int(
+                                        100,
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ],
+        },
+    ),
+    "email": Annotated(
+        Annotated {
+            typ: Basic(
+                Str,
+            ),
+            metadata: [
+                Validation(
+                    Rule(
+                        Pattern(
+                            "^[\\w\\.-]+@[\\w\\.-]+\\.\\w+$",
+                        ),
+                    ),
+                ),
+            ],
+        },
+    ),
+    "validated_name": Annotated(
+        Annotated {
+            typ: Basic(
+                Str,
+            ),
+            metadata: [
+                Validation(
+                    Rule(
+                        MinLen(
+                            1,
+                        ),
+                    ),
+                ),
+                Doc(
+                    "required field",
+                ),
+            ],
+        },
+    ),
+    "positive_int": Annotated(
+        Annotated {
+            typ: Basic(
+                Int,
+            ),
+            metadata: [
+                Validation(
+                    Rule(
+                        Gt(
+                            Int(
+                                0,
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+        },
+    ),
+    "percentage": Annotated(
+        Annotated {
+            typ: Basic(
+                Float,
+            ),
+            metadata: [
+                Validation(
+                    And(
+                        [
+                            Rule(
+                                Ge(
+                                    Float(
+                                        0.0,
+                                    ),
+                                ),
+                            ),
+                            Rule(
+                                Le(
+                                    Float(
+                                        1.0,
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ],
+        },
+    ),
+}

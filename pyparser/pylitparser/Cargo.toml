@@ -1,0 +1,20 @@
+[package]
+name = "pylitparser"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+duration-string = "0.3.0"
+clean-path = "0.2.1"
+num-bigint = "0.4.5"
+num-integer = "0.1.46"
+num-traits = "0.2.19"
+either = "1.13"
+
+# Ruff Python parser dependencies
+ruff_python_ast = { git = "https://github.com/astral-sh/ruff.git", tag = "0.8.6" }
+ruff_text_size = { git = "https://github.com/astral-sh/ruff.git", tag = "0.8.6" }
+
+[dev-dependencies]
+ruff_python_parser = { git = "https://github.com/astral-sh/ruff.git", tag = "0.8.6" }

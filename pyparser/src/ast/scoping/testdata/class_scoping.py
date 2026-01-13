@@ -1,0 +1,39 @@
+# Class scoping: class body doesn't act as enclosing scope for methods
+
+outer = "global"
+
+class MyClass:
+    # Class variable
+    class_var = "class level"
+    count = 0
+
+    def __init__(self, value):
+        # Instance variable (not tracked as scope binding)
+        self.value = value
+        # Local to __init__
+        local_init = "init local"
+
+    def method(self):
+        # Cannot access class_var directly (class scope not enclosing)
+        # Must use self.class_var or MyClass.class_var
+        method_local = "method local"
+        # Can access global
+        return outer
+
+    @staticmethod
+    def static_method():
+        static_local = "static local"
+        return static_local
+
+    @classmethod
+    def class_method(cls):
+        cls_local = "classmethod local"
+        return cls_local
+
+
+class Nested:
+    class Inner:
+        inner_var = "inner"
+
+        def inner_method(self):
+            inner_method_local = "inner method"

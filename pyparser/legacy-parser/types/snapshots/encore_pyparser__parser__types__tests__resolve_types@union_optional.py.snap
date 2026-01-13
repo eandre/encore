@@ -1,0 +1,89 @@
+---
+source: pyparser/src/parser/types/tests.rs
+expression: result
+input_file: pyparser/src/parser/types/testdata/union_optional.py
+---
+{
+    "maybe_name": Optional(
+        Basic(
+            Str,
+        ),
+    ),
+    "maybe_age": Optional(
+        Basic(
+            Int,
+        ),
+    ),
+    "string_or_int": Union(
+        Union {
+            types: [
+                Basic(
+                    Str,
+                ),
+                Basic(
+                    Int,
+                ),
+            ],
+        },
+    ),
+    "multi_union": Union(
+        Union {
+            types: [
+                Basic(
+                    Str,
+                ),
+                Basic(
+                    Int,
+                ),
+                Basic(
+                    Float,
+                ),
+                Basic(
+                    None,
+                ),
+            ],
+        },
+    ),
+    "pep604_union": Union(
+        Union {
+            types: [
+                Basic(
+                    Str,
+                ),
+                Basic(
+                    Int,
+                ),
+            ],
+        },
+    ),
+    "pep604_optional": Union(
+        Union {
+            types: [
+                Basic(
+                    Str,
+                ),
+                Basic(
+                    None,
+                ),
+            ],
+        },
+    ),
+    "pep604_multi": Union(
+        Union {
+            types: [
+                Basic(
+                    Str,
+                ),
+                Basic(
+                    Int,
+                ),
+                Basic(
+                    Float,
+                ),
+                Basic(
+                    None,
+                ),
+            ],
+        },
+    ),
+}

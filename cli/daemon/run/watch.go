@@ -55,9 +55,12 @@ func IgnoreEvents(events []watcher.Event) bool {
 }
 
 func ignoreEvent(ev watcher.Event) bool {
-	filename := filepath.Base(ev.Path)
-	if strings.HasPrefix(strings.ToLower(filename), "encore.gen.") {
-		// Ignore generated code
+	filename := strings.ToLower(filepath.Base(ev.Path))
+
+	switch {
+	case strings.Contains(ev.Path, "__pycache__"),
+		strings.HasPrefix(filename, "encore.gen."),
+		strings.Contains(ev.Path, "encore_gen"):
 		return true
 	}
 
@@ -65,7 +68,8 @@ func ignoreEvent(ev watcher.Event) bool {
 	ext := filepath.Ext(ev.Path)
 	switch ext {
 	case ".go", ".sql", ".mod", ".sum", ".work", ".app", ".cue",
-		".ts", ".js", ".tsx", ".jsx", ".mts", ".mjs", ".cjs", ".cts":
+		".ts", ".js", ".tsx", ".jsx", ".mts", ".mjs", ".cjs", ".cts",
+		".py":
 		return false
 	default:
 		return true

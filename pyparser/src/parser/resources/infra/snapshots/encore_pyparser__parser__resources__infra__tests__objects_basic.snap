@@ -1,0 +1,48 @@
+---
+source: pyparser/src/parser/resources/infra/tests.rs
+expression: output
+---
+# Source: objects_basic.py
+
+```python
+# Basic object storage bucket definitions
+
+from encoredev.storage.objects import Bucket
+
+# Simple bucket with empty config
+uploads = Bucket("uploads", {})
+
+# Public bucket
+public_assets = Bucket("public-assets", {
+    "public": True,
+})
+
+# Versioned bucket
+documents = Bucket("documents", {
+    "versioned": True,
+})
+
+# Public and versioned bucket
+media = Bucket("media", {
+    "public": True,
+    "versioned": True,
+})
+```
+
+=== Parsed Buckets ===
+
+Bucket: uploads
+  public: false
+  versioned: false
+
+Bucket: public-assets
+  public: true
+  versioned: false
+
+Bucket: documents
+  public: false
+  versioned: true
+
+Bucket: media
+  public: true
+  versioned: true

@@ -24,6 +24,7 @@ type Lang string
 const (
 	LangGo Lang = "go"
 	LangTS Lang = "typescript"
+	LangPy Lang = "python"
 )
 
 // File is a parsed encore.app file.
@@ -138,7 +139,7 @@ func Parse(data []byte) (*File, error) {
 	}
 
 	switch f.Lang {
-	case LangGo, LangTS:
+	case LangGo, LangTS, LangPy:
 	// Do nothing
 	case "":
 		f.Lang = LangGo

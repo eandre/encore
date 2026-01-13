@@ -1,0 +1,782 @@
+---
+source: pyparser/src/parser/types/tests.rs
+expression: result
+input_file: pyparser/src/parser/types/testdata/protocol.py
+---
+{
+    "Printable": Class(
+        ClassType {
+            obj: Object {
+                id: ObjectId(
+                    0,
+                ),
+                range: 76..144,
+                name: Some(
+                    "Printable",
+                ),
+                kind: Class(
+                    Class {
+                        bases: [
+                            Name(
+                                ExprName {
+                                    range: 92..100,
+                                    id: Name("Protocol"),
+                                    ctx: Load,
+                                },
+                            ),
+                        ],
+                        body: [
+                            FunctionDef(
+                                StmtFunctionDef {
+                                    range: 107..144,
+                                    is_async: false,
+                                    decorator_list: [],
+                                    name: Identifier {
+                                        id: Name("__str__"),
+                                        range: 111..118,
+                                    },
+                                    type_params: None,
+                                    parameters: Parameters {
+                                        range: 118..124,
+                                        posonlyargs: [],
+                                        args: [
+                                            ParameterWithDefault {
+                                                range: 119..123,
+                                                parameter: Parameter {
+                                                    range: 119..123,
+                                                    name: Identifier {
+                                                        id: Name("self"),
+                                                        range: 119..123,
+                                                    },
+                                                    annotation: None,
+                                                },
+                                                default: None,
+                                            },
+                                        ],
+                                        vararg: None,
+                                        kwonlyargs: [],
+                                        kwarg: None,
+                                    },
+                                    returns: Some(
+                                        Name(
+                                            ExprName {
+                                                range: 128..131,
+                                                id: Name("str"),
+                                                ctx: Load,
+                                            },
+                                        ),
+                                    ),
+                                    body: [
+                                        Expr(
+                                            StmtExpr {
+                                                range: 141..144,
+                                                value: EllipsisLiteral(
+                                                    ExprEllipsisLiteral {
+                                                        range: 141..144,
+                                                    },
+                                                ),
+                                            },
+                                        ),
+                                    ],
+                                },
+                            ),
+                        ],
+                        type_params: [],
+                        decorators: [],
+                        is_dataclass: false,
+                        is_named_tuple: false,
+                    },
+                ),
+                module_id: ModuleId(
+                    0,
+                ),
+                state: RefCell {
+                    value: NotStarted,
+                },
+            },
+            type_arguments: [],
+            class_attrs: [],
+            instance_attrs: [],
+            methods: [
+                MethodType {
+                    name: "__str__",
+                    signature: FunctionType {
+                        params: [
+                            FunctionParam {
+                                name: Some(
+                                    "self",
+                                ),
+                                typ: Any,
+                                optional: false,
+                                variadic: false,
+                                keyword_variadic: false,
+                                kind: Regular,
+                            },
+                        ],
+                        return_type: Basic(
+                            Str,
+                        ),
+                        type_params: None,
+                        is_async: false,
+                    },
+                    is_classmethod: false,
+                    is_staticmethod: false,
+                    is_property: false,
+                },
+            ],
+            bases: [
+                Any,
+            ],
+        },
+    ),
+    "Comparable": Class(
+        ClassType {
+            obj: Object {
+                id: ObjectId(
+                    0,
+                ),
+                range: 146..293,
+                name: Some(
+                    "Comparable",
+                ),
+                kind: Class(
+                    Class {
+                        bases: [
+                            Name(
+                                ExprName {
+                                    range: 163..171,
+                                    id: Name("Protocol"),
+                                    ctx: Load,
+                                },
+                            ),
+                        ],
+                        body: [
+                            FunctionDef(
+                                StmtFunctionDef {
+                                    range: 178..236,
+                                    is_async: false,
+                                    decorator_list: [],
+                                    name: Identifier {
+                                        id: Name("__lt__"),
+                                        range: 182..188,
+                                    },
+                                    type_params: None,
+                                    parameters: Parameters {
+                                        range: 188..215,
+                                        posonlyargs: [],
+                                        args: [
+                                            ParameterWithDefault {
+                                                range: 189..193,
+                                                parameter: Parameter {
+                                                    range: 189..193,
+                                                    name: Identifier {
+                                                        id: Name("self"),
+                                                        range: 189..193,
+                                                    },
+                                                    annotation: None,
+                                                },
+                                                default: None,
+                                            },
+                                            ParameterWithDefault {
+                                                range: 195..214,
+                                                parameter: Parameter {
+                                                    range: 195..214,
+                                                    name: Identifier {
+                                                        id: Name("other"),
+                                                        range: 195..200,
+                                                    },
+                                                    annotation: Some(
+                                                        StringLiteral(
+                                                            ExprStringLiteral {
+                                                                range: 202..214,
+                                                                value: StringLiteralValue {
+                                                                    inner: Single(
+                                                                        StringLiteral {
+                                                                            range: 202..214,
+                                                                            value: "Comparable",
+                                                                            flags: StringLiteralFlags {
+                                                                                quote_style: Single,
+                                                                                prefix: Empty,
+                                                                                triple_quoted: false,
+                                                                            },
+                                                                        },
+                                                                    ),
+                                                                },
+                                                            },
+                                                        ),
+                                                    ),
+                                                },
+                                                default: None,
+                                            },
+                                        ],
+                                        vararg: None,
+                                        kwonlyargs: [],
+                                        kwarg: None,
+                                    },
+                                    returns: Some(
+                                        Name(
+                                            ExprName {
+                                                range: 219..223,
+                                                id: Name("bool"),
+                                                ctx: Load,
+                                            },
+                                        ),
+                                    ),
+                                    body: [
+                                        Expr(
+                                            StmtExpr {
+                                                range: 233..236,
+                                                value: EllipsisLiteral(
+                                                    ExprEllipsisLiteral {
+                                                        range: 233..236,
+                                                    },
+                                                ),
+                                            },
+                                        ),
+                                    ],
+                                },
+                            ),
+                            FunctionDef(
+                                StmtFunctionDef {
+                                    range: 241..293,
+                                    is_async: false,
+                                    decorator_list: [],
+                                    name: Identifier {
+                                        id: Name("__eq__"),
+                                        range: 245..251,
+                                    },
+                                    type_params: None,
+                                    parameters: Parameters {
+                                        range: 251..272,
+                                        posonlyargs: [],
+                                        args: [
+                                            ParameterWithDefault {
+                                                range: 252..256,
+                                                parameter: Parameter {
+                                                    range: 252..256,
+                                                    name: Identifier {
+                                                        id: Name("self"),
+                                                        range: 252..256,
+                                                    },
+                                                    annotation: None,
+                                                },
+                                                default: None,
+                                            },
+                                            ParameterWithDefault {
+                                                range: 258..271,
+                                                parameter: Parameter {
+                                                    range: 258..271,
+                                                    name: Identifier {
+                                                        id: Name("other"),
+                                                        range: 258..263,
+                                                    },
+                                                    annotation: Some(
+                                                        Name(
+                                                            ExprName {
+                                                                range: 265..271,
+                                                                id: Name("object"),
+                                                                ctx: Load,
+                                                            },
+                                                        ),
+                                                    ),
+                                                },
+                                                default: None,
+                                            },
+                                        ],
+                                        vararg: None,
+                                        kwonlyargs: [],
+                                        kwarg: None,
+                                    },
+                                    returns: Some(
+                                        Name(
+                                            ExprName {
+                                                range: 276..280,
+                                                id: Name("bool"),
+                                                ctx: Load,
+                                            },
+                                        ),
+                                    ),
+                                    body: [
+                                        Expr(
+                                            StmtExpr {
+                                                range: 290..293,
+                                                value: EllipsisLiteral(
+                                                    ExprEllipsisLiteral {
+                                                        range: 290..293,
+                                                    },
+                                                ),
+                                            },
+                                        ),
+                                    ],
+                                },
+                            ),
+                        ],
+                        type_params: [],
+                        decorators: [],
+                        is_dataclass: false,
+                        is_named_tuple: false,
+                    },
+                ),
+                module_id: ModuleId(
+                    0,
+                ),
+                state: RefCell {
+                    value: NotStarted,
+                },
+            },
+            type_arguments: [],
+            class_attrs: [],
+            instance_attrs: [],
+            methods: [
+                MethodType {
+                    name: "__lt__",
+                    signature: FunctionType {
+                        params: [
+                            FunctionParam {
+                                name: Some(
+                                    "self",
+                                ),
+                                typ: Any,
+                                optional: false,
+                                variadic: false,
+                                keyword_variadic: false,
+                                kind: Regular,
+                            },
+                            FunctionParam {
+                                name: Some(
+                                    "other",
+                                ),
+                                typ: Any,
+                                optional: false,
+                                variadic: false,
+                                keyword_variadic: false,
+                                kind: Regular,
+                            },
+                        ],
+                        return_type: Basic(
+                            Bool,
+                        ),
+                        type_params: None,
+                        is_async: false,
+                    },
+                    is_classmethod: false,
+                    is_staticmethod: false,
+                    is_property: false,
+                },
+                MethodType {
+                    name: "__eq__",
+                    signature: FunctionType {
+                        params: [
+                            FunctionParam {
+                                name: Some(
+                                    "self",
+                                ),
+                                typ: Any,
+                                optional: false,
+                                variadic: false,
+                                keyword_variadic: false,
+                                kind: Regular,
+                            },
+                            FunctionParam {
+                                name: Some(
+                                    "other",
+                                ),
+                                typ: Basic(
+                                    Object,
+                                ),
+                                optional: false,
+                                variadic: false,
+                                keyword_variadic: false,
+                                kind: Regular,
+                            },
+                        ],
+                        return_type: Basic(
+                            Bool,
+                        ),
+                        type_params: None,
+                        is_async: false,
+                    },
+                    is_classmethod: false,
+                    is_staticmethod: false,
+                    is_property: false,
+                },
+            ],
+            bases: [
+                Any,
+            ],
+        },
+    ),
+    "Iterable": Class(
+        ClassType {
+            obj: Object {
+                id: ObjectId(
+                    0,
+                ),
+                range: 295..395,
+                name: Some(
+                    "Iterable",
+                ),
+                kind: Class(
+                    Class {
+                        bases: [
+                            Subscript(
+                                ExprSubscript {
+                                    range: 329..340,
+                                    value: Name(
+                                        ExprName {
+                                            range: 329..337,
+                                            id: Name("Protocol"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    slice: Name(
+                                        ExprName {
+                                            range: 338..339,
+                                            id: Name("T"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    ctx: Load,
+                                },
+                            ),
+                        ],
+                        body: [
+                            FunctionDef(
+                                StmtFunctionDef {
+                                    range: 347..395,
+                                    is_async: false,
+                                    decorator_list: [],
+                                    name: Identifier {
+                                        id: Name("__iter__"),
+                                        range: 351..359,
+                                    },
+                                    type_params: None,
+                                    parameters: Parameters {
+                                        range: 359..365,
+                                        posonlyargs: [],
+                                        args: [
+                                            ParameterWithDefault {
+                                                range: 360..364,
+                                                parameter: Parameter {
+                                                    range: 360..364,
+                                                    name: Identifier {
+                                                        id: Name("self"),
+                                                        range: 360..364,
+                                                    },
+                                                    annotation: None,
+                                                },
+                                                default: None,
+                                            },
+                                        ],
+                                        vararg: None,
+                                        kwonlyargs: [],
+                                        kwarg: None,
+                                    },
+                                    returns: Some(
+                                        StringLiteral(
+                                            ExprStringLiteral {
+                                                range: 369..382,
+                                                value: StringLiteralValue {
+                                                    inner: Single(
+                                                        StringLiteral {
+                                                            range: 369..382,
+                                                            value: "Iterator[T]",
+                                                            flags: StringLiteralFlags {
+                                                                quote_style: Single,
+                                                                prefix: Empty,
+                                                                triple_quoted: false,
+                                                            },
+                                                        },
+                                                    ),
+                                                },
+                                            },
+                                        ),
+                                    ),
+                                    body: [
+                                        Expr(
+                                            StmtExpr {
+                                                range: 392..395,
+                                                value: EllipsisLiteral(
+                                                    ExprEllipsisLiteral {
+                                                        range: 392..395,
+                                                    },
+                                                ),
+                                            },
+                                        ),
+                                    ],
+                                },
+                            ),
+                        ],
+                        type_params: [],
+                        decorators: [
+                            Decorator {
+                                range: 295..313,
+                                expression: Name(
+                                    ExprName {
+                                        range: 296..313,
+                                        id: Name("runtime_checkable"),
+                                        ctx: Load,
+                                    },
+                                ),
+                            },
+                        ],
+                        is_dataclass: false,
+                        is_named_tuple: false,
+                    },
+                ),
+                module_id: ModuleId(
+                    0,
+                ),
+                state: RefCell {
+                    value: NotStarted,
+                },
+            },
+            type_arguments: [],
+            class_attrs: [],
+            instance_attrs: [],
+            methods: [
+                MethodType {
+                    name: "__iter__",
+                    signature: FunctionType {
+                        params: [
+                            FunctionParam {
+                                name: Some(
+                                    "self",
+                                ),
+                                typ: Any,
+                                optional: false,
+                                variadic: false,
+                                keyword_variadic: false,
+                                kind: Regular,
+                            },
+                        ],
+                        return_type: Any,
+                        type_params: None,
+                        is_async: false,
+                    },
+                    is_classmethod: false,
+                    is_staticmethod: false,
+                    is_property: false,
+                },
+            ],
+            bases: [
+                Any,
+            ],
+        },
+    ),
+    "HasName": Class(
+        ClassType {
+            obj: Object {
+                id: ObjectId(
+                    0,
+                ),
+                range: 397..435,
+                name: Some(
+                    "HasName",
+                ),
+                kind: Class(
+                    Class {
+                        bases: [
+                            Name(
+                                ExprName {
+                                    range: 411..419,
+                                    id: Name("Protocol"),
+                                    ctx: Load,
+                                },
+                            ),
+                        ],
+                        body: [
+                            AnnAssign(
+                                StmtAnnAssign {
+                                    range: 426..435,
+                                    target: Name(
+                                        ExprName {
+                                            range: 426..430,
+                                            id: Name("name"),
+                                            ctx: Store,
+                                        },
+                                    ),
+                                    annotation: Name(
+                                        ExprName {
+                                            range: 432..435,
+                                            id: Name("str"),
+                                            ctx: Load,
+                                        },
+                                    ),
+                                    value: None,
+                                    simple: true,
+                                },
+                            ),
+                        ],
+                        type_params: [],
+                        decorators: [],
+                        is_dataclass: false,
+                        is_named_tuple: false,
+                    },
+                ),
+                module_id: ModuleId(
+                    0,
+                ),
+                state: RefCell {
+                    value: NotStarted,
+                },
+            },
+            type_arguments: [],
+            class_attrs: [],
+            instance_attrs: [
+                InterfaceField {
+                    range: 426..435,
+                    name: String(
+                        "name",
+                    ),
+                    optional: false,
+                    readonly: false,
+                    typ: Basic(
+                        Str,
+                    ),
+                    doc: None,
+                },
+            ],
+            methods: [],
+            bases: [
+                Any,
+            ],
+        },
+    ),
+    "HasId": Class(
+        ClassType {
+            obj: Object {
+                id: ObjectId(
+                    0,
+                ),
+                range: 437..510,
+                name: Some(
+                    "HasId",
+                ),
+                kind: Class(
+                    Class {
+                        bases: [
+                            Name(
+                                ExprName {
+                                    range: 449..457,
+                                    id: Name("Protocol"),
+                                    ctx: Load,
+                                },
+                            ),
+                        ],
+                        body: [
+                            FunctionDef(
+                                StmtFunctionDef {
+                                    range: 464..510,
+                                    is_async: false,
+                                    decorator_list: [
+                                        Decorator {
+                                            range: 464..473,
+                                            expression: Name(
+                                                ExprName {
+                                                    range: 465..473,
+                                                    id: Name("property"),
+                                                    ctx: Load,
+                                                },
+                                            ),
+                                        },
+                                    ],
+                                    name: Identifier {
+                                        id: Name("id"),
+                                        range: 482..484,
+                                    },
+                                    type_params: None,
+                                    parameters: Parameters {
+                                        range: 484..490,
+                                        posonlyargs: [],
+                                        args: [
+                                            ParameterWithDefault {
+                                                range: 485..489,
+                                                parameter: Parameter {
+                                                    range: 485..489,
+                                                    name: Identifier {
+                                                        id: Name("self"),
+                                                        range: 485..489,
+                                                    },
+                                                    annotation: None,
+                                                },
+                                                default: None,
+                                            },
+                                        ],
+                                        vararg: None,
+                                        kwonlyargs: [],
+                                        kwarg: None,
+                                    },
+                                    returns: Some(
+                                        Name(
+                                            ExprName {
+                                                range: 494..497,
+                                                id: Name("int"),
+                                                ctx: Load,
+                                            },
+                                        ),
+                                    ),
+                                    body: [
+                                        Expr(
+                                            StmtExpr {
+                                                range: 507..510,
+                                                value: EllipsisLiteral(
+                                                    ExprEllipsisLiteral {
+                                                        range: 507..510,
+                                                    },
+                                                ),
+                                            },
+                                        ),
+                                    ],
+                                },
+                            ),
+                        ],
+                        type_params: [],
+                        decorators: [],
+                        is_dataclass: false,
+                        is_named_tuple: false,
+                    },
+                ),
+                module_id: ModuleId(
+                    0,
+                ),
+                state: RefCell {
+                    value: NotStarted,
+                },
+            },
+            type_arguments: [],
+            class_attrs: [],
+            instance_attrs: [],
+            methods: [
+                MethodType {
+                    name: "id",
+                    signature: FunctionType {
+                        params: [
+                            FunctionParam {
+                                name: Some(
+                                    "self",
+                                ),
+                                typ: Any,
+                                optional: false,
+                                variadic: false,
+                                keyword_variadic: false,
+                                kind: Regular,
+                            },
+                        ],
+                        return_type: Basic(
+                            Int,
+                        ),
+                        type_params: None,
+                        is_async: false,
+                    },
+                    is_classmethod: false,
+                    is_staticmethod: false,
+                    is_property: true,
+                },
+            ],
+            bases: [
+                Any,
+            ],
+        },
+    ),
+}

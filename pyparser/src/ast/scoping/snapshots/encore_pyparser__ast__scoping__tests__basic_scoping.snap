@@ -1,0 +1,44 @@
+---
+source: pyparser/src/ast/scoping/tests.rs
+expression: output
+---
+# Source: basic_scoping.py
+
+```python
+# Basic scoping: local and global variables
+
+# Global variable
+x = 1
+y = "hello"
+
+def foo():
+    # Local variable shadows global
+    x = 2
+    z = 3
+    return x + z
+
+def bar():
+    # Access global x (no local binding)
+    return x + 1
+
+# Multiple assignment
+a, b, c = 1, 2, 3
+
+# Annotated assignment
+typed_var: int = 42
+```
+
+=== Scope Analysis ===
+
+Module: testpkg.basic_scoping
+Package: testpkg
+
+Scope 0 (Module):
+  a (local)
+  b (local)
+  bar (local)
+  c (local)
+  foo (local)
+  typed_var (local)
+  x (local)
+  y (local)

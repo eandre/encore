@@ -1,0 +1,9 @@
+---
+source: pyparser/src/ast/scoping/tests.rs
+expression: output
+---
+=== Scope Analysis ===
+
+
+Scope 0 (Module):
+  Foo (local)

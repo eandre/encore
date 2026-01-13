@@ -1,0 +1,315 @@
+---
+source: pyparser/src/parser/types/tests.rs
+expression: result
+input_file: pyparser/src/parser/types/testdata/function_signatures.py
+---
+{
+    "simple_function": Callable(
+        FunctionType {
+            params: [
+                FunctionParam {
+                    name: Some(
+                        "x",
+                    ),
+                    typ: Basic(
+                        Int,
+                    ),
+                    optional: false,
+                    variadic: false,
+                    keyword_variadic: false,
+                    kind: Regular,
+                },
+                FunctionParam {
+                    name: Some(
+                        "y",
+                    ),
+                    typ: Basic(
+                        Str,
+                    ),
+                    optional: false,
+                    variadic: false,
+                    keyword_variadic: false,
+                    kind: Regular,
+                },
+            ],
+            return_type: Basic(
+                Bool,
+            ),
+            type_params: None,
+            is_async: false,
+        },
+    ),
+    "with_optional": Callable(
+        FunctionType {
+            params: [
+                FunctionParam {
+                    name: Some(
+                        "name",
+                    ),
+                    typ: Basic(
+                        Str,
+                    ),
+                    optional: false,
+                    variadic: false,
+                    keyword_variadic: false,
+                    kind: Regular,
+                },
+                FunctionParam {
+                    name: Some(
+                        "age",
+                    ),
+                    typ: Basic(
+                        Int,
+                    ),
+                    optional: true,
+                    variadic: false,
+                    keyword_variadic: false,
+                    kind: Regular,
+                },
+            ],
+            return_type: Basic(
+                None,
+            ),
+            type_params: None,
+            is_async: false,
+        },
+    ),
+    "with_args": Callable(
+        FunctionType {
+            params: [
+                FunctionParam {
+                    name: Some(
+                        "args",
+                    ),
+                    typ: Basic(
+                        Int,
+                    ),
+                    optional: false,
+                    variadic: true,
+                    keyword_variadic: false,
+                    kind: Regular,
+                },
+            ],
+            return_type: List(
+                Basic(
+                    Int,
+                ),
+            ),
+            type_params: None,
+            is_async: false,
+        },
+    ),
+    "with_kwargs": Callable(
+        FunctionType {
+            params: [
+                FunctionParam {
+                    name: Some(
+                        "kwargs",
+                    ),
+                    typ: Basic(
+                        Str,
+                    ),
+                    optional: false,
+                    variadic: false,
+                    keyword_variadic: true,
+                    kind: Regular,
+                },
+            ],
+            return_type: Dict(
+                Basic(
+                    Str,
+                ),
+                Basic(
+                    Str,
+                ),
+            ),
+            type_params: None,
+            is_async: false,
+        },
+    ),
+    "mixed_params": Callable(
+        FunctionType {
+            params: [
+                FunctionParam {
+                    name: Some(
+                        "a",
+                    ),
+                    typ: Basic(
+                        Int,
+                    ),
+                    optional: false,
+                    variadic: false,
+                    keyword_variadic: false,
+                    kind: Regular,
+                },
+                FunctionParam {
+                    name: Some(
+                        "b",
+                    ),
+                    typ: Basic(
+                        Str,
+                    ),
+                    optional: false,
+                    variadic: false,
+                    keyword_variadic: false,
+                    kind: Regular,
+                },
+                FunctionParam {
+                    name: Some(
+                        "args",
+                    ),
+                    typ: Basic(
+                        Float,
+                    ),
+                    optional: false,
+                    variadic: true,
+                    keyword_variadic: false,
+                    kind: Regular,
+                },
+                FunctionParam {
+                    name: Some(
+                        "c",
+                    ),
+                    typ: Basic(
+                        Bool,
+                    ),
+                    optional: true,
+                    variadic: false,
+                    keyword_variadic: false,
+                    kind: KeywordOnly,
+                },
+                FunctionParam {
+                    name: Some(
+                        "kwargs",
+                    ),
+                    typ: Basic(
+                        Int,
+                    ),
+                    optional: false,
+                    variadic: false,
+                    keyword_variadic: true,
+                    kind: Regular,
+                },
+            ],
+            return_type: Basic(
+                None,
+            ),
+            type_params: None,
+            is_async: false,
+        },
+    ),
+    "positional_only": Callable(
+        FunctionType {
+            params: [
+                FunctionParam {
+                    name: Some(
+                        "x",
+                    ),
+                    typ: Basic(
+                        Int,
+                    ),
+                    optional: false,
+                    variadic: false,
+                    keyword_variadic: false,
+                    kind: PositionalOnly,
+                },
+                FunctionParam {
+                    name: Some(
+                        "y",
+                    ),
+                    typ: Basic(
+                        Str,
+                    ),
+                    optional: false,
+                    variadic: false,
+                    keyword_variadic: false,
+                    kind: PositionalOnly,
+                },
+            ],
+            return_type: Basic(
+                Bool,
+            ),
+            type_params: None,
+            is_async: false,
+        },
+    ),
+    "keyword_only": Callable(
+        FunctionType {
+            params: [
+                FunctionParam {
+                    name: Some(
+                        "name",
+                    ),
+                    typ: Basic(
+                        Str,
+                    ),
+                    optional: false,
+                    variadic: false,
+                    keyword_variadic: false,
+                    kind: KeywordOnly,
+                },
+                FunctionParam {
+                    name: Some(
+                        "age",
+                    ),
+                    typ: Basic(
+                        Int,
+                    ),
+                    optional: false,
+                    variadic: false,
+                    keyword_variadic: false,
+                    kind: KeywordOnly,
+                },
+            ],
+            return_type: Basic(
+                None,
+            ),
+            type_params: None,
+            is_async: false,
+        },
+    ),
+    "async_function": Callable(
+        FunctionType {
+            params: [
+                FunctionParam {
+                    name: Some(
+                        "url",
+                    ),
+                    typ: Basic(
+                        Str,
+                    ),
+                    optional: false,
+                    variadic: false,
+                    keyword_variadic: false,
+                    kind: Regular,
+                },
+            ],
+            return_type: Basic(
+                Bytes,
+            ),
+            type_params: None,
+            is_async: true,
+        },
+    ),
+    "generic_function": Callable(
+        FunctionType {
+            params: [
+                FunctionParam {
+                    name: Some(
+                        "items",
+                    ),
+                    typ: List(
+                        Any,
+                    ),
+                    optional: false,
+                    variadic: false,
+                    keyword_variadic: false,
+                    kind: Regular,
+                },
+            ],
+            return_type: Any,
+            type_params: None,
+            is_async: false,
+        },
+    ),
+}

@@ -1,0 +1,56 @@
+---
+source: pyparser/src/parser/resources/infra/tests.rs
+expression: output
+---
+# Source: pubsub_basic.py
+
+```python
+# Basic pub/sub topic definitions
+
+from dataclasses import dataclass
+from encoredev.pubsub import Topic
+
+@dataclass
+class EventMessage:
+    data: str
+
+@dataclass
+class OrderMessage:
+    order_id: int
+    customer_id: str
+
+# Simple topic with default config
+events = Topic[EventMessage]("events", {})
+
+# Topic with explicit delivery guarantee
+orders = Topic[OrderMessage]("orders", {
+    "delivery_guarantee": "exactly-once",
+})
+
+# Topic with ordering
+ordered_events = Topic[EventMessage]("ordered-events", {
+    "ordering_attribute": "customer_id",
+})
+
+# Topic with both config options
+full_config = Topic[OrderMessage]("full-config", {
+    "delivery_guarantee": "at-least-once",
+    "ordering_attribute": "user_id",
+})
+```
+
+=== Parsed Topics ===
+
+Topic: events
+  delivery_guarantee: at-least-once
+
+Topic: orders
+  delivery_guarantee: exactly-once
+
+Topic: ordered-events
+  delivery_guarantee: at-least-once
+  ordering_attribute: customer_id
+
+Topic: full-config
+  delivery_guarantee: at-least-once
+  ordering_attribute: user_id
